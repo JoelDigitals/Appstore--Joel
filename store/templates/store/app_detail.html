@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ app.name }} - Joel Appstore{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-4">
+    <img src="{{ app.icon.url }}" class="img-fluid rounded" alt="{{ app.name }} Icon" />
+  </div>
+  <div class="col-md-8">
+    <h1>{{ app.name }}</h1>
+    <p><strong>Plattform:</strong> {{ app.platform|title }}</p>
+    <p><strong>Beschreibung:</strong> {{ app.description }}</p>
+    <p><strong>Sprache:</strong> {{ app.language }}</p>
+    <p><strong>Altersfreigabe:</strong> {{ app.age_rating }}</p>
+    <!-- hier evtl. Versionen, Screenshots, Download-Links -->
+    {% if latest_version %}
+      <h3>Neueste Version: {{ latest_version.version_number }}</h3>
+      <p>{{ latest_version.release_notes|linebreaks }}</p>
+      <a href="{% url 'download_app' latest_version.id %}" class="btn btn-success">Download</a>
+    {% else %}
+      <p>Keine Versionen verfügbar.</p>
+    {% endif %}
+
+    <a href="{% url 'home' %}" class="btn btn-link mt-3">Zurück zur Übersicht</a>
+  </div>
+</div>
+{% endblock %}

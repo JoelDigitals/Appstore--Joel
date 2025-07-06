@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head><title>Flappy</title>
+<style>canvas { background: skyblue; display: block; margin: auto; }</style></head>
+<body>
+<canvas id="flappy" width="320" height="480"></canvas>
+<script>
+  const canvas = document.getElementById("flappy");
+  const ctx = canvas.getContext("2d");
+  let birdY = 200, velocity = 0, gravity = 0.6;
+
+  function draw() {
+    ctx.clearRect(0, 0, 320, 480);
+    ctx.fillStyle = "yellow";
+    ctx.fillRect(50, birdY, 20, 20);
+  }
+
+  function update() {
+    velocity += gravity;
+    birdY += velocity;
+    if (birdY > 460) birdY = 460;
+  }
+
+  function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  window.addEventListener("keydown", e => {
+    if (e.code === "Space") velocity = -8;
+  });
+
+  loop();
+</script>
+</body>
+</html>

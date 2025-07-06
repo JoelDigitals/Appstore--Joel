@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Download bestätigen</title>
+  <style>
+    /* Styling siehe oben, optional Bootstrap nutzen */
+    body {
+      font-family: Arial, sans-serif;
+      background: #f8f9fa;
+      color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .container {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      max-width: 400px;
+      text-align: center;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-right: 1rem;
+    }
+    a.cancel {
+      background-color: #e9ecef;
+      color: #555;
+      padding: 0.5rem 1rem;
+      border-radius: 5px;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    a.cancel:hover {
+      background-color: #dee2e6;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Download bestätigen</h1>
+    <p>Möchtest du <strong>{{ version.app.name }}</strong> (Version {{ version.version_number }}) wirklich herunterladen?</p>
+    <form method="post">
+      {% csrf_token %}
+      <button type="submit">✅ Jetzt herunterladen</button>
+      <a href="{% url 'app_detail' version.app.id %}" class="cancel">Abbrechen</a>
+    </form>
+  </div>
+</body>
+</html>

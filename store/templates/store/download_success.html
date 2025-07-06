@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Download abgeschlossen</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #e6f4ea;
+      color: #2a6f37;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+    h1 {
+      font-size: 3rem;
+      margin-bottom: 0.5rem;
+    }
+    p {
+      font-size: 1.25rem;
+      margin: 0.5rem 0 2rem 0;
+    }
+    .btn-download {
+      background-color: #2a6f37;
+      color: white;
+      padding: 0.75rem 1.5rem;
+      font-size: 1.1rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      box-shadow: 0 4px 8px rgba(42, 111, 55, 0.4);
+      transition: background-color 0.3s ease;
+      margin-bottom: 1rem;
+    }
+    .btn-download:hover,
+    .btn-download:focus {
+      background-color: #24582f;
+      outline: none;
+    }
+    .btn-home {
+      background-color: #555;
+      color: white;
+      padding: 0.75rem 1.5rem;
+      font-size: 1.1rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .btn-home:hover,
+    .btn-home:focus {
+      background-color: #333;
+      outline: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>✅ Download bestätigt!</h1>
+  <p>Danke für das Herunterladen von <strong>{{ version.app.name }}</strong>.</p>
+  <a href="{% url 'download_file' version.id %}" class="btn-download" role="button" aria-label="APK herunterladen">
+    APK jetzt herunterladen
+  </a>
+  <a href="{% url 'home' %}" class="btn-home" role="button" aria-label="Zur Startseite">
+    🏠 Zur Startseite
+  </a>
+</body>
+</html>

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Appstore{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    /* Sticky Footer Layout */
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: #121212;
+      color: #eee;
+      display: flex;
+      flex-direction: column;
+    }
+    body > .container {
+      flex: 1 0 auto;
+    }
+    footer {
+      flex-shrink: 0;
+      background-color: #1f1f1f;
+      color: #888;
+      padding: 1rem;
+      text-align: center;
+      margin-top: 2rem;
+    }
+    nav {
+      background-color: #1f1f1f;
+    }
+    a, a:hover {
+      color: #0d6efd;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark mb-4">
+  <div class="container">
+    <a class="navbar-brand" href="{% url 'home' %}">JDS Appstore</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div id="navbarNav" class="collapse navbar-collapse">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a href="{% url 'home' %}" class="nav-link">Alle Apps</a></li>
+        <li class="nav-item"><a href="{% url 'platform' 'windows' %}" class="nav-link">Windows</a></li>
+        <li class="nav-item"><a href="{% url 'platform' 'linux' %}" class="nav-link">Linux</a></li>
+        <li class="nav-item"><a href="{% url 'platform' 'android' %}" class="nav-link">Android</a></li>
+        <li class="nav-item"><a href="{% url 'platform' 'ios' %}" class="nav-link">iOS</a></li>
+        <li class="nav-item"><a href="{% url 'platform' 'mac' %}" class="nav-link">Mac</a></li>
+      </ul>
+      <form method="get" action="{% url 'home' %}" class="d-flex me-3" role="search">
+        <input class="form-control me-2" type="search" name="q" placeholder="Suche Apps" value="{{ request.GET.q|default:'' }}" />
+        <button class="btn btn-outline-light" type="submit">Suchen</button>
+      </form>
+      <ul class="navbar-nav">
+        {% if user.is_authenticated %}
+          <li class="nav-item"><a href="{% url 'developer_dashboard' %}" class="nav-link">Developer Dashboard</a></li>
+          <li class="nav-item"><a href="{% url 'logout' %}" class="nav-link">Logout</a></li>
+        {% else %}
+          <li class="nav-item"><a href="{% url 'login' %}" class="nav-link">Login</a></li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+  {% block content %}
+  {% endblock %}
+</div>
+
+<footer>
+  &copy; {{ now.year }} Joel Digitals | 
+  <a href="https://joel-digitals.onrender.com/imprint" target="_blank" rel="noopener">Impressum</a> | 
+  <a href="https://joel-digitals.onrender.com/privacy" target="_blank" rel="noopener">Datenschutz</a> |
+  <a href="https://joel-digitals.onrender.com/terms" target="_blank" rel="noopener">AGB</a>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

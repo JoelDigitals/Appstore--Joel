@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Tetris</title>
+  <style>
+    canvas { background: black; display: block; margin: auto; }
+  </style>
+</head>
+<body>
+<canvas id="tetris" width="240" height="400"></canvas>
+<script>
+  const canvas = document.getElementById('tetris');
+  const context = canvas.getContext('2d');
+  context.scale(20, 20);
+  
+  const matrix = [
+    [0, 0, 0],
+    [1, 1, 1],
+    [0, 1, 0],
+  ];
+
+  function drawMatrix(matrix, offset) {
+    matrix.forEach((row, y) => {
+      row.forEach((value, x) => {
+        if (value !== 0) {
+          context.fillStyle = 'red';
+          context.fillRect(x + offset.x, y + offset.y, 1, 1);
+        }
+      });
+    });
+  }
+
+  function draw() {
+    context.fillStyle = '#000';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    drawMatrix(matrix, {x: 5, y: 5});
+  }
+
+  draw();
+</script>
+</body>
+</html>

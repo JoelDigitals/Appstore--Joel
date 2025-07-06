@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head><title>2048</title>
+<style>
+  body { background: #faf8ef; font-family: sans-serif; }
+  #grid { display: grid; grid-template-columns: repeat(4, 80px); gap: 10px; margin: 50px auto; width: max-content; }
+  .tile { width: 80px; height: 80px; background: #ccc; font-size: 2em; text-align: center; line-height: 80px; }
+</style></head>
+<body>
+<div id="grid"></div>
+<script>
+  const grid = document.getElementById("grid");
+  const tiles = Array.from({ length: 16 }, () => {
+    const div = document.createElement("div");
+    div.className = "tile";
+    grid.appendChild(div);
+    return div;
+  });
+
+  function spawn() {
+    const empty = tiles.filter(t => !t.textContent);
+    if (!empty.length) return;
+    const tile = empty[Math.floor(Math.random() * empty.length)];
+    tile.textContent = Math.random() < 0.9 ? 2 : 4;
+  }
+
+  function init() {
+    tiles.forEach(t => t.textContent = "");
+    spawn();
+    spawn();
+  }
+
+  document.addEventListener("keydown", () => spawn());
+  init();
+</script>
+</body>
+</html>

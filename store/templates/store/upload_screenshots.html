@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<h2>Screenshots für {{ app.name }} hochladen</h2>
+
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  <label for="screenshots">Wähle 3–10 Screenshots aus:</label><br>
+  <input type="file" name="screenshots" id="screenshots" multiple accept="image/*" required><br><br>
+  
+  <button type="submit">Hochladen</button>
+</form>
+
+<p>
+  <a href="{% url 'app_screenshots' app.id %}">Zurück zu den vorhandenen Screenshots</a>
+</p>
+
+<script>
+  const input = document.getElementById('screenshots');
+  input.addEventListener('change', function () {
+    const count = this.files.length;
+    if (count < 3 || count > 10) {
+      alert('Bitte wähle mindestens 3 und maximal 10 Screenshots aus.');
+      this.value = '';  // Zurücksetzen
+    }
+  });
+</script>
+{% endblock %}

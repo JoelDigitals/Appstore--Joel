@@ -1,26 +1,205 @@
 {% extends "base.html" %}
-{% block title %}{{ app.name }} - Joel Appstore{% endblock %}
-{% block content %}
-<div class="row">
-  <div class="col-md-4">
-    <img src="{{ app.icon.url }}" class="img-fluid rounded" alt="{{ app.name }} Icon" />
-  </div>
-  <div class="col-md-8">
-    <h1>{{ app.name }}</h1>
-    <p><strong>Plattform:</strong> {{ app.platform|title }}</p>
-    <p><strong>Beschreibung:</strong> {{ app.description }}</p>
-    <p><strong>Sprache:</strong> {{ app.language }}</p>
-    <p><strong>Altersfreigabe:</strong> {{ app.age_rating }}</p>
-    <!-- hier evtl. Versionen, Screenshots, Download-Links -->
-    {% if latest_version %}
-      <h3>Neueste Version: {{ latest_version.version_number }}</h3>
-      <p>{{ latest_version.release_notes|linebreaks }}</p>
-      <a href="{% url 'download_app' latest_version.id %}" class="btn btn-success">Download</a>
-    {% else %}
-      <p>Keine Versionen verfügbar.</p>
-    {% endif %}
+{% block title %}{{ app.name }} – Joel Appstore{% endblock %}
 
-    <a href="{% url 'home' %}" class="btn btn-link mt-3">Zurück zur Übersicht</a>
+{% block content %}
+<div class="container my-5 text-white">
+  <div class="row">
+    <div class="col-lg-9">
+
+      <!-- App Kopfbereich -->
+      <div class="d-flex flex-column flex-md-row align-items-center mb-4">
+        <img src="{{ app.icon.url }}" alt="{{ app.name }} Icon" class="rounded shadow me-md-4 mb-3 mb-md-0" style="width: 100px; height: 100px;">
+        <div>
+          <h1 class="display-5 fw-bold">{{ app.name }}</h1>
+          <p class="mb-1">
+            von <a href="{% url 'developer_detail' app.developer.name %}" class="link-light text-decoration-underline">{{ app.developer.name }}</a>
+          </p>
+          <p class="text-light small">
+            {{ app.platform|title }} • {{ app.language }} • Ab {{ app.age_rating }}
+          </p>
+          {% if latest_version %}
+            <a href="{% url 'download_app' latest_version.id %}" class="btn btn-success btn-lg rounded-pill mt-2">Jetzt herunterladen</a>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Beschreibung in Card -->
+      {% with app.description|default_if_none:"" as full_desc %}
+        {% if full_desc|length > 250 %}
+          <div class="card bg-dark border-light mb-4 rounded text-white">
+            <div class="card-body" style="white-space: pre-wrap; word-break: break-word;">
+              <p class="fst-italic mb-2" id="descPreview">{{ full_desc|slice:":250" }}…</p>
+              <p class="fst-italic mb-2 d-none" id="descFull">{{ full_desc }}</p>
+              <button id="toggleDescBtn" class="btn btn-link p-0 text-decoration-underline text-light" type="button">mehr</button>
+            </div>
+          </div>
+        {% else %}
+          <div class="card bg-dark border-light mb-4 rounded text-white">
+            <div class="card-body" style="white-space: pre-wrap; word-break: break-word;">
+              <p class="fst-italic mb-2">{{ full_desc }}</p>
+            </div>
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <!-- Screenshots -->
+      {% if app.screenshots.all %}
+      <div class="card bg-dark border-light mb-4 rounded text-white">
+        <div class="card-body">
+          <h4 class="card-title">Screenshots</h4>
+          <div class="row g-3">
+            {% for shot in app.screenshots.all %}
+            <div class="col-6 col-md-4 col-lg-3">
+              <div class="screenshot-thumb rounded shadow overflow-hidden" style="cursor: pointer;">
+                <a href="#" data-bs-toggle="modal" data-bs-target="#screenshotModal{{ shot.id }}">
+                  <img src="{{ shot.image.url }}" alt="Screenshot von {{ app.name }}" class="img-fluid rounded" />
+                </a>
+              </div>
+            </div>
+
+            <!-- Modal für Screenshot -->
+            <div class="modal fade" id="screenshotModal{{ shot.id }}" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered modal-xl">
+                <div class="modal-content bg-dark border-light rounded">
+                  <div class="modal-body p-0 d-flex justify-content-center align-items-center" style="max-height: 90vh; overflow: hidden;">
+                    <img src="{{ shot.image.url }}" alt="Großer Screenshot von {{ app.name }}" 
+                         style="max-width: 100%; max-height: 90vh; object-fit: contain;" class="rounded" />
+                  </div>
+                  <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-outline-light rounded-pill" data-bs-dismiss="modal">Schließen</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Neueste Version -->
+      {% if latest_version %}
+      <div class="card bg-dark border-light mb-4 rounded text-white">
+        <div class="card-body">
+          <h4 class="card-title">Neueste Version</h4>
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+              <strong class="fs-4">{{ latest_version.version_number }}</strong><br>
+              <small class="text-light">Veröffentlicht am {{ latest_version.uploaded_at|date:"d.m.Y" }}</small>
+            </div>
+            <div>
+              {% if latest_version.release_notes %}
+                <button class="btn btn-outline-light btn-sm rounded-pill" type="button" data-bs-toggle="collapse" data-bs-target="#releaseNotesCollapse" aria-expanded="false" aria-controls="releaseNotesCollapse">
+                  Release Notes anzeigen
+                </button>
+              {% endif %}
+              {% if app.versions.count > 1 %}
+                <button type="button" class="btn btn-outline-light btn-sm rounded-pill ms-2" data-bs-toggle="modal" data-bs-target="#alleVersionenModal">
+                  Mehr Versionen anzeigen
+                </button>
+              {% endif %}
+            </div>
+          </div>
+          {% if latest_version.release_notes %}
+          <div class="collapse mt-3" id="releaseNotesCollapse">
+            <p style="white-space: pre-wrap; word-break: break-word;">{{ latest_version.release_notes }}</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="text-end mt-4">
+        <a href="{% url 'home' %}" class="btn btn-outline-light rounded-pill">Zurück zum App Store</a>
+      </div>
+    </div>
+
+    {% if suggestions %}
+    <div class="col-lg-3 mt-4 mt-lg-0">
+      <div class="card bg-dark border-light rounded text-white">
+        <div class="card-body">
+          <h5 class="card-title">Ähnliche Apps</h5>
+          {% for suggestion in suggestions %}
+            <a href="{% url 'app_detail' suggestion.id %}" class="d-block text-decoration-none mb-3 p-2 rounded hover-bg-light">
+              <div class="d-flex align-items-center">
+                <img src="{{ suggestion.icon.url }}" alt="{{ suggestion.name }}" class="img-fluid rounded shadow me-3" style="width: 60px; height: 60px; object-fit: cover;">
+                <div>
+                  <strong>{{ suggestion.name }}</strong><br>
+                  <small>Ab {{ suggestion.age_rating }} • {{ suggestion.developer.name }}</small>
+                </div>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
   </div>
 </div>
+
+<!-- Modal für alle Versionen -->
+<div class="modal fade" id="alleVersionenModal" tabindex="-1" aria-labelledby="alleVersionenModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content bg-dark text-white border-light rounded">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title" id="alleVersionenModalLabel">Alle Versionen von {{ app.name }}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Schließen"></button>
+      </div>
+      <div class="modal-body">
+        <ul class="list-group list-group-flush">
+          {% for version in app.versions.all|dictsortreversed:"uploaded_at" %}
+            <li class="list-group-item bg-dark text-white border-secondary">
+              <div class="d-flex justify-content-between">
+                <div>
+                  <strong>{{ version.version_number }}</strong>
+                  <small class="text-light ms-2">{{ version.uploaded_at|date:"d.m.Y" }}</small>
+                </div>
+              </div>
+              {% if version.release_notes %}
+                <p class="mb-0 small mt-1" style="white-space: pre-wrap; word-break: break-word;">{{ version.release_notes }}</p>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="modal-footer border-secondary">
+        <button type="button" class="btn btn-outline-light rounded-pill" data-bs-dismiss="modal">Schließen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .hover-bg-light:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  .screenshot-thumb img {
+    transition: transform 0.3s ease;
+  }
+  .screenshot-thumb:hover img {
+    transform: scale(1.05);
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const btn = document.getElementById('toggleDescBtn');
+    if (!btn) return;
+    const preview = document.getElementById('descPreview');
+    const full = document.getElementById('descFull');
+
+    btn.addEventListener('click', function () {
+      if (full.classList.contains('d-none')) {
+        full.classList.remove('d-none');
+        preview.classList.add('d-none');
+        btn.textContent = 'weniger';
+      } else {
+        full.classList.add('d-none');
+        preview.classList.remove('d-none');
+        btn.textContent = 'mehr';
+      }
+    });
+  });
+</script>
+
 {% endblock %}

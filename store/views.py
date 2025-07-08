@@ -3,19 +3,52 @@ from django.contrib.auth import login, logout
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
 from .models import App, Version, PushSubscription, Developer
 from .forms import AppWithVersionForm, VersionForm, DeveloperForm
 from django.core.paginator import Paginator
 from .tasks import start_background_check
-from django.http import FileResponse
-from django.http import JsonResponse
+from django.http import FileResponse, JsonResponse, HttpResponse, FileResponse
 import json
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from kombu.exceptions import OperationalError as KombuOpError
 from celery import Celery
+from django.utils.text import slugify
+import os
+import zipfile
+from io import BytesIO
+from django.utils import timezone
 
 app_celery = Celery()
+
+
+@login_required
+@staff_member_required
+def download_all_media(request):
+    # Verzeichnis mit den Medien-Dateien
+    media_root = settings.MEDIA_ROOT
+
+    # Temporärer Speicher im RAM für ZIP-Datei
+    zip_buffer = BytesIO()
+
+    # ZIP-Datei erstellen
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        for root, dirs, files in os.walk(media_root):
+            for file in files:
+                full_path = os.path.join(root, file)
+                # Relativer Pfad innerhalb der ZIP-Datei
+                relative_path = os.path.relpath(full_path, media_root)
+                zip_file.write(full_path, arcname=relative_path)
+
+    # ZIP-Puffer an den Anfang zurücksetzen
+    zip_buffer.seek(0)
+
+    # Antwort mit ZIP als Download
+    response = HttpResponse(zip_buffer, content_type='application/zip')
+    response['Content-Disposition'] = 'attachment; filename="media_files.zip"'
+    return response
+
 
 def register_view(request):
     if request.method == 'POST':
@@ -104,9 +137,99 @@ def developer_dashboard(request):
     })
 
 @login_required
-def create_developer_view(request):
-    if hasattr(request.user, 'developer'):
+def edit_developer_view(request, developer_id):
+    developer = get_object_or_404(Developer, id=developer_id, user=request.user)
+
+    if request.method == 'POST':
+        form = DeveloperForm(request.POST, request.FILES, instance=developer)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Entwicklerprofil erfolgreich aktualisiert.')
+            return redirect('developer_dashboard')
+    else:
+        form = DeveloperForm(instance=developer)
+
+    return render(request, 'store/edit_developer.html', {'form': form, 'developer': developer})
+
+@login_required
+def delete_developer_view(request, developer_id):
+    developer = get_object_or_404(Developer, id=developer_id, user=request.user)
+
+    if request.method == 'POST':
+        # Alle Apps des Entwicklers löschen
+        developer.apps.all().delete()
+        developer.delete()
+        messages.success(request, 'Entwicklerprofil erfolgreich gelöscht.')
+        return redirect('home')
+
+    return render(request, 'store/delete_developer.html', {'developer': developer})
+
+@login_required
+def app_detail_dev_view(request, app_id):
+    app = get_object_or_404(App, id=app_id, developer=request.user.developer)
+    versions = app.versions.order_by('-uploaded_at')  # Alle Versionen laden
+
+    return render(request, 'store/app_detail_dev.html', {
+        'app': app,
+        'versions': versions,
+    })
+
+@login_required
+def edit_app_view(request, app_id):
+    app = get_object_or_404(App, id=app_id, developer=request.user.developer)
+    
+    if request.method == 'POST':
+        form = AppWithVersionForm(request.POST, files=request.FILES, instance=app)
+        if form.is_valid():
+            app = form.save(commit=False)
+            app.developer = request.user.developer
+            app.save()
+            form.save_version(app)
+            messages.success(request, 'App erfolgreich aktualisiert.')
+            return redirect('developer_dashboard')
+    else:
+        form = AppWithVersionForm(instance=app) # Instance für das Editieren   
+    return render(request, 'store/edit_app.html', {'form': form, 'app': app})
+
+@login_required
+def delete_app_view(request, app_id):
+    app = get_object_or_404(App, id=app_id, developer=request.user.developer)
+    
+    if request.method == 'POST':
+        app.delete()
+        messages.success(request, 'App erfolgreich gelöscht.')
         return redirect('developer_dashboard')
+
+    return render(request, 'store/delete_app.html', {'app': app})
+
+@login_required
+def app_screenshots_view(request, app_id):
+    app = get_object_or_404(App, id=app_id, developer=request.user.developer)
+    screenshots = app.screenshots.all()
+
+    return render(request, 'store/app_screenshots.html', {
+        'app': app,
+        'screenshots': screenshots,
+    })
+
+@login_required
+def upload_screenshots_view(request, app_id):
+    app = get_object_or_404(App, id=app_id, developer=request.user.developer)
+
+    if request.method == 'POST':
+        files = request.FILES.getlist('screenshots')
+        if files:
+            for file in files:
+                app.screenshots.create(image=file)
+            messages.success(request, 'Screenshots erfolgreich hochgeladen.')
+            return redirect('app_screenshots', app_id=app.id)
+        else:
+            messages.error(request, 'Bitte mindestens ein Screenshot hochladen.')
+
+    return render(request, 'store/upload_screenshots.html', {'app': app})
+
+@login_required
+def create_developer_view(request):
 
     if request.method == 'POST':
         form = DeveloperForm(request.POST)
@@ -122,16 +245,22 @@ def create_developer_view(request):
 
 def home(request):
     query = request.GET.get('q', '')
+    apps = App.objects.filter(
+        published=True,
+        published_at__lte=timezone.now()  # Vergangenheit oder jetzt
+    )
     if query:
-        apps = App.objects.filter(name__icontains=query)
-    else:
-        apps = App.objects.all()
+        apps = apps.filter(name__icontains=query)
     context = {'apps': apps, 'query': query}
     return render(request, 'store/home.html', context)
 
 def platform_view(request, platform_name):
     query = request.GET.get('q', '')
-    apps = App.objects.filter(platform__iexact=platform_name)
+    apps = App.objects.filter(
+        platform__iexact=platform_name,
+        published=True,
+        published_at__lte=timezone.now()  # Vergangenheit oder jetzt
+    )
     if query:
         apps = apps.filter(name__icontains=query)
     context = {'apps': apps, 'platform': platform_name, 'query': query}
@@ -140,7 +269,30 @@ def platform_view(request, platform_name):
 def app_detail_view(request, app_id):
     app = get_object_or_404(App, id=app_id, published=True)
     latest_version = app.versions.filter(approved=True).order_by('-uploaded_at').first()
-    return render(request, 'store/app_detail.html', {'app': app, 'latest_version': latest_version})
+
+    # Ähnliche Apps z. B. basierend auf Plattform oder Kategorie
+    suggestions = App.objects.filter(
+        platform=app.platform,
+        published=True,
+        published_at__lte=timezone.now()  # Veröffentlichung liegt in Vergangenheit oder ist heute
+    ).exclude(id=app.id)[:8]
+
+    return render(request, 'store/app_detail.html', {
+        'app': app,
+        'latest_version': latest_version,
+        'suggestions': suggestions,
+    })
+
+
+def developer_detail_view(request, name):
+    # Name ggf. entschlüsseln/entschlacken
+    developer = get_object_or_404(Developer, name__iexact=name)
+    apps = App.objects.filter(developer=developer, published=True)
+
+    return render(request, 'store/developer_detail.html', {
+        'developer': developer,
+        'apps': apps,
+    })
 
 @login_required
 def upload_version(request, app_id):
@@ -203,7 +355,6 @@ def download_file_view(request, version_id):
     )
     return response
 
-
 @csrf_exempt
 def save_subscription(request):
     if request.method == "POST":
@@ -214,3 +365,4 @@ def save_subscription(request):
         )
         return JsonResponse({"status": "ok"})
     return JsonResponse({"error": "nur POST erlaubt"}, status=405)
+

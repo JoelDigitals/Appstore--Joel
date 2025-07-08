@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}{{ developer.name }} – Entwicklerprofil{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-md-3">
+      {% if developer.logo %}
+        <img src="{{ developer.logo.url }}" class="img-fluid rounded" alt="{{ developer.name }}">
+      {% endif %}
+    </div>
+    <div class="col-md-9">
+      <h1>{{ developer.name }}</h1>
+      {% if developer.description %}
+        <p>{{ developer.description|linebreaks }}</p>
+      {% endif %}
+
+      <ul class="list-unstyled">
+        {% if developer.website %}
+          <li><strong>Website:</strong> <a href="{{ developer.website }}" target="_blank" rel="noopener">{{ developer.website }}</a></li>
+        {% endif %}
+        {% if developer.email %}
+          <li><strong>Email:</strong> <a href="mailto:{{ developer.email }}">{{ developer.email }}</a></li>
+        {% endif %}
+        {% if developer.twitter %}
+          <li><strong>Twitter:</strong> <a href="{{ developer.twitter }}" target="_blank" rel="noopener">{{ developer.twitter }}</a></li>
+        {% endif %}
+        {% if developer.github %}
+          <li><strong>GitHub:</strong> <a href="{{ developer.github }}" target="_blank" rel="noopener">{{ developer.github }}</a></li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+
+  <hr class="my-4">
+
+  <h3>Apps von {{ developer.name }}</h3>
+
+  <!-- Fester Plattform-Filter -->
+  <div class="mb-3">
+    <label for="platformFilter" class="form-label text-white">Nach Plattform filtern:</label>
+    <select id="platformFilter" class="form-select w-auto bg-dark text-white" aria-label="Plattform auswählen">
+      <option value="all" selected>Alle Plattformen</option>
+      <option value="android">Android</option>
+      <option value="ios">iOS</option>
+      <option value="windows">Windows</option>
+      <option value="macos">macOS</option>
+      <option value="linux">Linux</option>
+    </select>
+  </div>
+
+  <div class="row" id="appsContainer">
+    {% for app in apps %}
+      <div class="col-6 col-md-3 mb-4 app-card" data-platform="{{ app.platform|lower }}">
+        <a href="{% url 'app_detail' app.id %}" class="text-decoration-none text-white d-block">
+          <img src="{{ app.icon.url }}" class="img-fluid rounded mb-1" alt="{{ app.name }}">
+          <p class="mb-1 fw-semibold">{{ app.name }}</p>
+          <small class="text-muted">
+            {{ app.platform|title }} • {{ app.language }}
+          </small>
+        </a>
+      </div>
+    {% empty %}
+      <p>Keine Apps veröffentlicht.</p>
+    {% endfor %}
+  </div>
+
+  <a href="{% url 'home' %}" class="btn btn-link mt-3">Zurück zum App Store</a>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const filterSelect = document.getElementById('platformFilter');
+    const apps = document.querySelectorAll('#appsContainer .app-card');
+
+    filterSelect.addEventListener('change', function() {
+      const selected = this.value;
+
+      apps.forEach(app => {
+        const platform = app.getAttribute('data-platform');
+        if (selected === 'all' || platform === selected) {
+          app.style.display = 'block';
+        } else {
+          app.style.display = 'none';
+        }
+      });
+    });
+  });
+</script>
+
+{% endblock %}

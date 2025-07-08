@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}App löschen – {{ app.name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h2>App löschen</h2>
+  <p>Bist du sicher, dass du <strong>{{ app.name }}</strong> löschen möchtest? Diese Aktion kann nicht rückgängig gemacht werden.</p>
+
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Ja, löschen</button>
+    <a href="{% url 'developer_dashboard' %}" class="btn btn-secondary">Abbrechen</a>
+  </form>
+</div>
+{% endblock %}

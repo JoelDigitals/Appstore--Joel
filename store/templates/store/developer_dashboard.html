@@ -6,33 +6,22 @@
 <div class="container py-4">
   <h2 class="mb-4">Willkommen, {{ developer.name }}</h2>
 
-  <p>Hier kannst du deine Apps verwalten, neue Versionen hochladen und den Status deiner Apps einsehen.</p>
-  <p>Du kannst auch neue Apps erstellen, indem du auf den Button unten klickst.</p>
+  <p>Verwalte deine Apps, lade neue Versionen hoch oder bearbeite bestehende Apps.</p>
   <a href="{% url 'create_app' %}" class="btn btn-primary mb-4">Neue App erstellen</a>
+  <a href="{% url 'edit_developer' developer.id %}" class="btn btn-warning mb-4">Profil bearbeiten</a>
+  <a href="{% url 'delete_developer' developer.id %}" class="btn btn-danger mb-4">Profil löschen</a>
+
   <h4>Deine Apps</h4>
   {% if apps_with_latest %}
     <ul class="list-group">
     {% for entry in apps_with_latest %}
       <li class="list-group-item d-flex justify-content-between align-items-center">
         <div>
-          <strong>{{ entry.app.name }}</strong>
-          {% if entry.latest_version %}
-            <br />
-            <small>Status Prüfung: {{ entry.latest_version.get_checking_status_display }}</small>
-            {% if entry.latest_version.checking_log %}
-              <br />
-              <button class="btn btn-sm btn-link p-0" type="button" data-bs-toggle="collapse" data-bs-target="#log-{{ entry.latest_version.id }}">
-                Prüfprotokoll anzeigen
-              </button>
-              <div class="collapse" id="log-{{ entry.latest_version.id }}">
-                <pre>{{ entry.latest_version.checking_log }}</pre>
-              </div>
-            {% endif %}
-          {% else %}
-            <br /><em>Keine Versionen hochgeladen</em>
-          {% endif %}
+          <strong>{{ entry.app.name }}</strong><br />
+          <small>Plattform: {{ entry.app.platform }}</small><br />
+          <small>{{ entry.app.description|truncatewords:20 }}</small>
         </div>
-        <a href="{% url 'app_detail' entry.app.id %}" class="btn btn-sm btn-primary">Details</a>
+        <a href="{% url 'app_detail_dev' entry.app.id %}" class="btn btn-sm btn-outline-primary">Details</a>
       </li>
     {% endfor %}
     </ul>

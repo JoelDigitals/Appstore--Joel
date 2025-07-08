@@ -19,11 +19,49 @@ class VersionForm(forms.ModelForm):
 class DeveloperForm(forms.ModelForm):
     class Meta:
         model = Developer
-        fields = ['name', 'website', 'description']
+        fields = [
+            'name',
+            'description',
+            'website',
+            'email',
+            'logo',
+            'youtube',
+            'twitter',
+            'github',
+        ]
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Name des Entwicklers'}),
-            'website': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'https://beispiel.de'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Beschreibung'}),
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Name des Entwicklers'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Kurzbeschreibung'
+            }),
+            'website': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://example.com'
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'support@example.com'
+            }),
+            'logo': forms.ClearableFileInput(attrs={
+                'class': 'form-control'
+            }),
+            'youtube': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://youtube.com/channel/...'
+            }),
+            'twitter': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://twitter.com/username'
+            }),
+            'github': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://github.com/username'
+            }),
         }
 
 class AppWithVersionForm(forms.ModelForm):

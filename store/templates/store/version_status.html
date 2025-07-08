@@ -1,264 +1,231 @@
 {% load static %}
+
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Prüfstatus der App-Version</title>
-  <style>
-    body {
-      background: #121212;
-      color: white;
-      font-family: Arial, sans-serif;
-      margin: 2rem;
-    }
-    .step {
-      margin-bottom: 2rem;
-      background: #222;
-      padding: 1rem;
-      border-radius: 8px;
-      border-left: 6px solid #666;
-      transition: background 0.3s, border-color 0.3s;
-      white-space: pre-wrap;
-    }
-    .step.completed {
-      border-left-color: #28a745;
-      background-color: #1e2e1e;
-    }
-    .step h3 {
-      margin: 0;
-      font-size: 1.2rem;
-    }
-    .step .info {
-      font-size: 0.95rem;
-      color: #aaa;
-      margin-top: 0.4rem;
-    }
-    .step p {
-      margin-top: 0.6rem;
-      font-size: 1rem;
-    }
+    <meta charset="UTF-8">
+    <title>Statusanzeige</title>
+    <link rel="stylesheet" href="{% static 'css/status.css' %}">
+    <style>
+        body {
+            font-family: sans-serif;
+            background: #111;
+            color: white;
+            margin: 0;
+            padding: 0;
+        }
 
-    #warning-box {
-      background-color: #ffcc00;
-      color: black;
-      padding: 1rem;
-      border-radius: 6px;
-      font-weight: bold;
-      margin: 1rem 0 2rem;
-      border-left: 6px solid #ffaa00;
-    }
+        .container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #1c1c1c;
+            border-radius: 10px;
+            box-shadow: 0 0 10px #000;
+        }
 
-    #open-games-btn {
-      background-color: #28a745;
-      color: white;
-      border: none;
-      padding: 0.6rem 1rem;
-      border-radius: 5px;
-      font-size: 1rem;
-      cursor: pointer;
-      margin-top: 2rem;
-    }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
 
-    #games-modal {
-      display: none;
-      position: fixed;
-      z-index: 1000;
-      left: 0; top: 0;
-      width: 100vw;
-      height: 100vh;
-      background-color: rgba(0,0,0,0.8);
-      align-items: center;
-      justify-content: center;
-    }
-    #games-modal.active {
-      display: flex;
-    }
-    #games-modal-content {
-      background: #222;
-      border-radius: 10px;
-      width: 90vw;
-      max-width: 900px;
-      height: 80vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    #games-modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.5rem 1rem;
-      background-color: #111;
-      color: white;
-    }
-    #games-modal-close {
-      font-size: 1.8rem;
-      cursor: pointer;
-    }
-    #game-list {
-      padding: 0.5rem 1rem;
-      background-color: #1a1a1a;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
-    #game-list button {
-      flex: 1 1 120px;
-      padding: 0.5rem;
-      background-color: #333;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 1rem;
-    }
-    #game-frame {
-      flex-grow: 1;
-      border: none;
-      background: black;
-      width: 100%;
-    }
-    #log-box {
-      background: #111;
-      padding: 1rem;
-      border-radius: 6px;
-      max-height: 200px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      margin-top: 1rem;
-      font-family: monospace;
-      font-size: 0.9rem;
-      color: #ccc;
-      border: 1px solid #444;
-    }
-  </style>
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            background: #222;
+            border-left: 5px solid #555;
+            border-radius: 5px;
+            transition: background 0.3s, border-left 0.3s;
+        }
+
+        .step.completed {
+            background: #2d2;
+            border-left-color: #4f4;
+        }
+
+        .step p {
+            margin: 0;
+        }
+
+        .games-link {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .games-link button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #444;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .games-link button:hover {
+            background-color: #666;
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #222;
+            padding: 20px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 1000px;
+            height: 80%;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .modal-body {
+            flex-grow: 1;
+            margin-top: 10px;
+            display: flex;
+        }
+
+        .modal-nav {
+            width: 200px;
+            border-right: 1px solid #444;
+            padding-right: 10px;
+        }
+
+        .modal-nav button {
+            display: block;
+            width: 100%;
+            background: #333;
+            color: white;
+            padding: 10px;
+            border: none;
+            margin-bottom: 5px;
+            text-align: left;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .modal-nav button:hover {
+            background: #555;
+        }
+
+        .modal-frame {
+            flex-grow: 1;
+            margin-left: 10px;
+            border: none;
+            background: white;
+            height: 100%;
+            width: 100%;
+        }
+    </style>
 </head>
 <body>
+    <div class="container">
+        <h1>Statusanzeige der App-Prüfung</h1>
 
-<h1>Prüfstatus der Version {{ version.version_number }} der App {{ version.app.name }}</h1>
+        <div class="step" id="step-file">
+            <p>📁 Datei-Upload abgeschlossen.</p>
+        </div>
+        <div class="step" id="step-structure">
+            <p>🧩 Strukturprüfung abgeschlossen.</p>
+        </div>
+        <div class="step" id="step-security">
+            <p>🔒 Sicherheitscheck abgeschlossen.</p>
+        </div>
+        <div class="step" id="step-quality">
+            <p>🧪 Qualitätsprüfung abgeschlossen.</p>
+        </div>
+        <div class="step" id="step-release">
+            <p>🚀 Veröffentlichung vorbereitet.</p>
+        </div>
 
-<div id="warning-box">
-  ⚠️ Bitte diese Seite <strong>nicht schließen, neu laden oder verlassen</strong>, solange die Prüfung läuft!
-</div>
-
-<div id="steps-container">
-  <div class="step" id="step-file">
-    <h3>1. Dateianalyse</h3>
-    <div class="info">
-      Wir prüfen, ob die hochgeladene Datei ein gültiges ZIP-, APK- oder unterstütztes Archiv ist und korrekt geöffnet werden kann.
+        <div class="games-link">
+            <button id="open-games-btn">🎮 Minispiele öffnen</button>
+        </div>
     </div>
-    <p>Es wird geprüft</p>
-  </div>
 
-  <div class="step" id="step-structure">
-    <h3>2. Struktur- & Metadatenprüfung</h3>
-    <div class="info">
-      Es wird kontrolliert, ob essentielle Dateien wie <code>index.html</code>, <code>manifest.json</code> oder <code>main.js</code> enthalten sind und ob Versions- und App-Informationen korrekt gesetzt wurden.
+    <!-- Modal -->
+    <div id="games-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Minispiele</h2>
+                <button id="games-modal-close" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-nav" id="game-list">
+                    <button data-game="tetris">Tetris</button>
+                    <button data-game="pong">Pong</button>
+                    <button data-game="flappy">Flappy Bird</button>
+                    <button data-game="blockblast">BlockBlast</button>
+                    <button data-game="2048">2048</button>
+                    <button data-game="snake">Snake</button>
+                </div>
+                <iframe id="game-frame" class="modal-frame" src="" title="Minispiel" allowfullscreen></iframe>
+            </div>
+        </div>
     </div>
-    <p>Es wird geprüft</p>
-  </div>
 
-  <div class="step" id="step-security">
-    <h3>3. Sicherheits- & Malwareprüfung</h3>
-    <div class="info">
-      Die App wird mit mehreren Verfahren auf Schadcode, bekannte Viren, eingebettete bösartige Skripte oder verdächtige URLs geprüft.
-    </div>
-    <p>Es wird geprüft</p>
-  </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const modal = document.getElementById('games-modal');
+            const openBtn = document.getElementById('open-games-btn');
+            const closeBtn = document.getElementById('games-modal-close');
+            const gameFrame = document.getElementById('game-frame');
+            const gameButtons = document.querySelectorAll('#game-list button');
+            const gamePathBase = "{% static 'games/' %}";
 
-  <div class="step" id="step-quality">
-    <h3>4. Inhalts- & Qualitätscheck</h3>
-    <div class="info">
-      Hier wird die Gesamtgröße geprüft, ob die App mobilfreundlich ist, welche Ressourcen geladen werden und ob sie übermäßig große Dateien oder externe Tracker enthält.
-    </div>
-    <p>Es wird geprüft</p>
-  </div>
+            openBtn.addEventListener('click', () => {
+                modal.classList.add('active');
+                gameFrame.src = "";
+            });
 
-  <div class="step" id="step-release">
-    <h3>5. Freigabe & Veröffentlichung</h3>
-    <div class="info">
-      Sobald alle Prüfungen bestanden wurden, wird die App gespeichert, verarbeitet und – je nach Sichtbarkeit – sofort oder geplant veröffentlicht.
-    </div>
-    <p>Es wird geprüft</p>
-  </div>
-</div>
+            closeBtn.addEventListener('click', () => {
+                modal.classList.remove('active');
+                gameFrame.src = "";
+            });
 
-<h2>Vollständiges Prüfprotokoll</h2>
-<pre id="log-box">{{ log }}</pre>
+            gameButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const game = btn.getAttribute('data-game');
+                    gameFrame.src = gamePathBase + game + ".html";
+                });
+            });
 
-<button id="open-games-btn">🕹️ Minispiele öffnen</button>
-
-<div id="games-modal">
-  <div id="games-modal-content">
-    <div id="games-modal-header">
-      <h2>Minispiele</h2>
-      <span id="games-modal-close" tabindex="0">&times;</span>
-    </div>
-    <div id="game-list">
-      <button data-game="2048">2048</button>
-      <button data-game="blockblast">BlockBlast</button>
-      <button data-game="flappy">Flappy Bird</button>
-      <button data-game="pong">Pong</button>
-      <button data-game="snake">Snake</button>
-      <button data-game="tetris">Tetris</button>
-    </div>
-    <iframe id="game-frame" src="" title="Minispiel"></iframe>
-  </div>
-</div>
-
-<script>
-  const stepOrder = ['file', 'structure', 'security', 'quality', 'release'];
-  const progress = {{ progress }};
-  const delay = 2000;
-
-  function updateStep(id, message) {
-    const el = document.getElementById('step-' + id);
-    if (!el) return;
-    el.classList.add('completed');
-    el.querySelector('p').textContent = message;
-  }
-
-  async function runAnimation() {
-    for (let i = 0; i < stepOrder.length; i++) {
-      if (i < progress) {
-        updateStep(stepOrder[i], "✅ Schritt erfolgreich abgeschlossen.");
-      } else {
-        break;
-      }
-      await new Promise(r => setTimeout(r, delay));
-    }
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    runAnimation();
-
-    const modal = document.getElementById('games-modal');
-    const openBtn = document.getElementById('open-games-btn');
-    const closeBtn = document.getElementById('games-modal-close');
-    const gameFrame = document.getElementById('game-frame');
-    const gameButtons = document.querySelectorAll('#game-list button');
-    const gamePathBase = "{% static 'games/' %}";
-
-    openBtn.addEventListener('click', () => {
-      modal.classList.add('active');
-      gameFrame.src = "";
-    });
-    closeBtn.addEventListener('click', () => {
-      modal.classList.remove('active');
-      gameFrame.src = "";
-    });
-    gameButtons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const game = btn.getAttribute('data-game');
-        gameFrame.src = gamePathBase + game + ".html";
-      });
-    });
-    document.addEventListener('keydown', e => {
-      if (e.key === "Escape") modal.classList.remove('active');
-    });
-  });
-</script>
-
+            document.addEventListener('keydown', e => {
+                if (e.key === "Escape") modal.classList.remove('active');
+            });
+        });
+    </script>
 </body>
 </html>

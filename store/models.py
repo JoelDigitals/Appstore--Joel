@@ -39,11 +39,17 @@ CHECKING_STATUS = [
 class Developer(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
-    website = models.URLField(blank=True, null=True)        # <--- MUSS vorhanden sein
-    description = models.TextField(blank=True, null=True)   # <--- MUSS vorhanden sein
+    description = models.TextField(blank=True)
+    website = models.URLField(blank=True)
+    email = models.EmailField(blank=True)
+    logo = models.ImageField(upload_to='developer_logos/', blank=True)
+    youtube = models.URLField(blank=True)
+    twitter = models.URLField(blank=True)
+    github = models.URLField(blank=True)
 
     def __str__(self):
         return self.name
+
 
 def validate_minimum_screenshots(value):
     if value.count() < 3:

@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-5">
+  <h2 class="mb-4">Entwicklerprofil löschen</h2>
+
+  <div class="alert alert-danger">
+    <p><strong>Bist du sicher, dass du dein Entwicklerprofil löschen möchtest?</strong></p>
+    <p>Alle zugehörigen Apps werden ebenfalls dauerhaft gelöscht.</p>
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Entwicklerprofil löschen</button>
+    <a href="{% url 'developer_dashboard' %}" class="btn btn-secondary">Abbrechen</a>
+  </form>
+</div>
+{% endblock %}

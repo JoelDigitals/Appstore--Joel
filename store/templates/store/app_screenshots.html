@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<h2>Screenshots für {{ app.name }}</h2>
+
+{% if screenshots %}
+  <div style="display: flex; flex-wrap: wrap; gap: 1rem;">
+    {% for screenshot in screenshots %}
+      <div style="border: 1px solid #ccc; padding: 10px;">
+        <img src="{{ screenshot.file.url }}" alt="Screenshot" style="max-width: 200px; height: auto;">
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <p>Keine Screenshots vorhanden.</p>
+{% endif %}
+
+<p>
+  <a href="{% url 'upload_screenshots' app.id %}" class="button">Weitere Screenshots hochladen</a>
+</p>
+{% endblock %}

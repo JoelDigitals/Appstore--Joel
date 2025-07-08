@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}App bearbeiten – {{ app.name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h2>App bearbeiten</h2>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-success">Speichern</button>
+    <a href="{% url 'developer_dashboard' %}" class="btn btn-secondary">Abbrechen</a>
+  </form>
+</div>
+{% endblock %}

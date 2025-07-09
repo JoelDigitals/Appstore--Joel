@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Download {{ version.app.name }}</title>
+  <style>
+    body {
+      background-color: #121212;
+      color: #eee;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 2rem;
+    }
+    a.download-button {
+      display: inline-block;
+      margin: 1rem auto;
+      padding: 1rem 2rem;
+      background-color: #1e88e5;
+      color: white;
+      font-weight: bold;
+      text-decoration: none;
+      border-radius: 6px;
+    }
+    .instructions {
+      max-width: 500px;
+      margin: 2rem auto;
+      background-color: #222;
+      padding: 1rem;
+      border-radius: 6px;
+      text-align: left;
+      font-size: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Download für "{{ version.app.name }}"</h1>
+  <p>Version: {{ version.version_number }}</p>
+
+  <a id="download-link" class="download-button" href="{% url 'download_file' version.id %}" download>
+    Datei herunterladen
+  </a>
+
+  <div id="ios-instructions" class="instructions" style="display:none;">
+    <h2>Installation auf iOS</h2>
+    <p>Auf iPhones und iPads kann die App nicht automatisch installiert werden.</p>
+    <p>Bitte laden Sie die IPA-Datei herunter und installieren Sie sie anschließend manuell über iTunes, Finder oder entsprechende Tools wie AltStore.</p>
+    <p>Bei Fragen kontaktieren Sie bitte unseren Support.</p>
+  </div>
+
+  <script>
+    const userAgent = navigator.userAgent.toLowerCase();
+    const downloadLink = document.getElementById('download-link');
+    const iosInstructions = document.getElementById('ios-instructions');
+    const versionId = {{ version.id }};
+    const isAndroid = /android/.test(userAgent);
+    const isIOS = /iphone|ipad/.test(userAgent);
+
+    if (isAndroid) {
+      // Android: Automatisch Download starten
+      downloadLink.click();
+
+      // Optionale Meldung
+      document.body.insertAdjacentHTML('beforeend', '<p>Die Installation sollte automatisch starten. Bitte bestätigen Sie die Installation.</p>');
+    } else if (isIOS) {
+      // iOS: Download-Link anzeigen + Installationshinweise
+      iosInstructions.style.display = 'block';
+    } else {
+      // Desktop / andere Geräte: Download-Link anzeigen, keine automatische Aktionen
+    }
+
+    // Funktion, die vom Client nach erfolgreicher Installation aufgerufen werden sollte
+    function reportInstallComplete() {
+      fetch("{% url 'download_complete' %}", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({version_id: versionId})
+      }).then(resp => resp.json())
+        .then(data => {
+          if (data.status === 'ok') {
+            console.log("Server wurde über erfolgreiche Installation informiert.");
+          } else {
+            console.warn("Fehler beim Informieren des Servers.");
+          }
+        }).catch(err => console.error("Netzwerkfehler beim Informieren des Servers:", err));
+    }
+
+    // Helferfunktion um CSRF-Cookie zu lesen (für Django)
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
+
+    // Beispiel: Nach erfolgreicher Installation kannst du reportInstallComplete() im Client-Code aufrufen
+    // z.B. wenn die App eine spezielle Seite öffnet oder der Benutzer manuell bestätigt.
+  </script>
+</body>
+</html>

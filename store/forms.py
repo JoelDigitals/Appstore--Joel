@@ -1,10 +1,41 @@
 from django import forms
-from .models import App, AppWarning, Version, Developer
+from .models import App, AppWarning, Version, Developer, CATEGORY_CHOICES, SUB_CATEGORY_CHOICES, WARNING_TYPES
+from django.utils import timezone
 
-class AppForm(forms.ModelForm):
+class AppEditForm(forms.ModelForm):
+    # Optional: Du kannst hier Widgets oder Labels anpassen, z. B. für die Kategorien
+    category = forms.ChoiceField(choices=CATEGORY_CHOICES, label="Kategorie")
+    subcategory = forms.ChoiceField(choices=SUB_CATEGORY_CHOICES, label="Unterkategorie", required=False)
+
+    warning_types = forms.MultipleChoiceField(
+        choices=WARNING_TYPES,
+        widget=forms.CheckboxSelectMultiple,
+        label="Warnung(en)",
+        required=False
+    )
+
     class Meta:
         model = App
-        fields = ['name', 'description', 'language', 'age_rating', 'icon']
+        fields = ['name', 'description', 'language', 'platform', 'age_rating', 'icon', 'category', 'subcategory']
+
+    def __init__(self, *args, **kwargs):
+        instance = kwargs.get('instance')
+        if instance:
+            initial = kwargs.setdefault('initial', {})
+            initial['warning_types'] = [w.warning_type for w in instance.warnings.all()]
+        super().__init__(*args, **kwargs)
+
+    def save(self, commit=True):
+        app = super().save(commit=False)
+        if commit:
+            app.save()
+            # Vorhandene Warnungen löschen
+            AppWarning.objects.filter(app=app).delete()
+            # Neue Warnungen speichern
+            selected_warnings = self.cleaned_data.get('warning_types', [])
+            for wt in selected_warnings:
+                AppWarning.objects.create(app=app, warning_type=wt)
+        return app
 
 class WarningForm(forms.ModelForm):
     class Meta:
@@ -68,17 +99,44 @@ class AppWithVersionForm(forms.ModelForm):
     version_number = forms.CharField(max_length=50)
     file = forms.FileField()
     release_notes = forms.CharField(widget=forms.Textarea, required=False)
+    published_at = forms.DateTimeField(
+        required=False,
+        widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+        label="Geplante Veröffentlichungszeit (optional)"
+    )
+
+    # NEU: Kategorien
+    category = forms.ChoiceField(choices=CATEGORY_CHOICES, label="Kategorie")
+    subcategory = forms.ChoiceField(choices=SUB_CATEGORY_CHOICES, label="Unterkategorie", required=False)
+
+    # NEU: Mehrfachauswahl für Warnungen
+    warning_types = forms.MultipleChoiceField(
+        choices=WARNING_TYPES,
+        widget=forms.CheckboxSelectMultiple,
+        label="Warnung(en)",
+        required=False
+    )
 
     class Meta:
         model = App
-        fields = ['name', 'description', 'language', 'platform', 'age_rating', 'icon']
+        fields = ['name', 'description', 'language', 'platform', 'age_rating', 'icon', 'category', 'subcategory']
 
     def save(self, commit=True, developer=None):
         app = super().save(commit=False)
         if developer:
             app.developer = developer
+
+        published_at = self.cleaned_data.get('published_at')
+        app.published_at = published_at or timezone.now()
+
         if commit:
             app.save()
+
+            # AppWarnings speichern
+            selected_warnings = self.cleaned_data.get('warning_types', [])
+            for wt in selected_warnings:
+                AppWarning.objects.create(app=app, warning_type=wt)
+
         return app
 
     def save_version(self, app):

@@ -35,6 +35,45 @@ CHECKING_STATUS = [
     ('failed', 'Fehlgeschlagen'),
 ]
 
+CATEGORY_CHOICES = [
+    ('games', 'Spiele'),
+    ('productivity', 'Produktivität'),
+    ('education', 'Bildung'),
+    ('entertainment', 'Unterhaltung'),
+    ('utilities', 'Dienstprogramme'),
+    ('social', 'Soziale Netzwerke'),
+    ('health', 'Gesundheit'),
+    ('lifestyle', 'Lebensstil'),
+    ('finance', 'Finanzen'),
+    ('travel', 'Reisen'),
+    ('news', 'Nachrichten'),
+    ('music', 'Musik'),
+    ('photo_video', 'Foto & Video'),
+    ('books', 'Bücher'),
+    ('shopping', 'Einkaufen'),
+    ('food_drink', 'Essen & Trinken'),
+    ('sports', 'Sport'),
+    ('weather', 'Wetter'),
+    ('navigation', 'Navigation'),
+    ('communication', 'Kommunikation'),
+    ('other', 'Andere'),
+]
+
+SUB_CATEGORY_CHOICES = [
+    ('none', 'Keine Unterkategorie'),       
+    ('action', 'Action'),
+    ('adventure', 'Abenteuer'),
+    ('puzzle', 'Puzzle'),
+    ('strategy', 'Strategie'),
+    ('simulation', 'Simulation'),
+    ('arcade', 'Arcade'),
+    ('racing', 'Rennspiele'),
+    ('role_playing', 'Rollenspiele'),
+    ('sports_games', 'Sportspiele'),
+    ('card_games', 'Kartenspiele'),
+    ('board_games', 'Brettspiele'),
+    ('casual_games', 'Casual Spiele'),
+]
 
 class Developer(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -62,14 +101,26 @@ class App(models.Model):
     language = models.CharField(max_length=5, choices=LANGUAGES, default='de')
     platform = models.CharField(max_length=10, choices=PLATFORM_CHOICES)
     age_rating = models.CharField(max_length=2, choices=AGE_RATINGS, default='0')
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='other')
+    subcategory = models.CharField(max_length=50, choices=SUB_CATEGORY_CHOICES, blank=True)
     icon = models.ImageField(upload_to='app_icons/')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     published = models.BooleanField(default=False)
     published_at = models.DateTimeField(null=True, blank=True)
 
+    download_count = models.PositiveIntegerField(default=0)  # NEU
+
     def __str__(self):
-        return f"{self.name} ({self.developer.name})"
+        return f"{self.name} ({self.developer.name}) - {self.platform}"
+    
+class VersionDownload(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    version = models.ForeignKey('Version', on_delete=models.CASCADE)
+    downloaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'version')
 
 class AppScreenshot(models.Model):
     app = models.ForeignKey(App, on_delete=models.CASCADE, related_name='screenshots')

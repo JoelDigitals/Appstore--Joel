@@ -53,6 +53,43 @@
       </div>
 
       <div class="mb-3">
+        {{ form.category.label_tag }}
+        {{ form.category }}
+        {% if form.category.errors %}
+          <div class="text-danger">{{ form.category.errors }}</div>
+        {% endif %}
+      </div>
+      
+      <div class="mb-3">
+        {{ form.subcategory.label_tag }}
+        {{ form.subcategory }}
+        {% if form.subcategory.errors %}
+          <div class="text-danger">{{ form.subcategory.errors }}</div>
+        {% endif %}
+      </div>
+      
+      <div class="mb-3">
+        <label>{{ form.warning_types.label }}</label>
+        {% for checkbox in form.warning_types %}
+          <div class="form-check">
+            {{ checkbox.tag }} {{ checkbox.choice_label }}
+          </div>
+        {% endfor %}
+        {% if form.warning_types.errors %}
+          <div class="text-danger">{{ form.warning_types.errors }}</div>
+        {% endif %}
+      </div>
+      
+
+      <div class="mb-3">
+        {{ form.published_at.label_tag }}
+        {{ form.published_at }}
+        {% if form.published_at.errors %}
+          <div class="text-danger">{{ form.published_at.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="mb-3">
         {{ form.icon.label_tag }}
         {{ form.icon }}
         {% if form.icon.errors %}

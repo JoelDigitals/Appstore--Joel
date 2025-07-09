@@ -15,11 +15,38 @@
             von <a href="{% url 'developer_detail' app.developer.name %}" class="link-light text-decoration-underline">{{ app.developer.name }}</a>
           </p>
           <p class="text-light small">
-            {{ app.platform|title }} • {{ app.language }} • Ab {{ app.age_rating }}
+            {{ app.platform|title }} • {{ app.language }} • Ab {{ app.age_rating }} • {{ app.download_count|default:"0" }} downloads
+
+          </p>
+          <p class="text-light small">
+            {% if app.category %}
+              Kategorie: {{ app.category }}
+            {% else %}
+              Kategorie: Unbekannt
+            {% endif %}
           </p>
           {% if latest_version %}
-            <a href="{% url 'download_app' latest_version.id %}" class="btn btn-success btn-lg rounded-pill mt-2">Jetzt herunterladen</a>
+            {% if user.is_authenticated %}
+              {% if user_installed_version %}
+                {% if user_installed_version.id == latest_version.id %}
+                  <button class="btn btn-secondary btn-lg rounded-pill mt-2" disabled>Installiert</button>
+                {% else %}
+                  <a href="{% url 'download_start' latest_version.id %}" class="btn btn-warning btn-lg rounded-pill mt-2">
+                    Aktualisieren
+                  </a>
+                {% endif %}
+              {% else %}
+                <a href="{% url 'download_start' latest_version.id %}" class="btn btn-success btn-lg rounded-pill mt-2">
+                  Download
+                </a>
+              {% endif %}
+            {% else %}
+              <a href="{% url 'login' %}?next={{ request.path }}" class="btn btn-primary btn-lg rounded-pill mt-2">
+                Zum Download anmelden
+              </a>
+            {% endif %}
           {% endif %}
+            
         </div>
       </div>
 

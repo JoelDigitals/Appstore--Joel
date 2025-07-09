@@ -136,10 +136,9 @@ def start_background_check(version_id):
         version.save()
 
         # Verzögerte Veröffentlichung 15-30 Minuten nach Zulassung
-        delay_minutes = random.randint(15, 30)
-        publish_time = timezone.now() + timedelta(minutes=delay_minutes)
+        time.sleep(random.randint(15, 20) * 60)
+        
         version.app.published = True
-        version.app.published_at = publish_time
         version.app.save()
 
     except Exception as e:

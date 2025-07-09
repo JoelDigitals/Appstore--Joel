@@ -4,7 +4,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
-from .models import App, Version, PushSubscription, Developer, VersionDownload, CATEGORY_CHOICES
+from .models import App, Version, PushSubscription, Developer, VersionDownload, CATEGORY_CHOICES, Notification
 from .forms import AppWithVersionForm, VersionForm, DeveloperForm, AppEditForm
 from .tasks import start_background_check, start_background_check_version
 from django.http import FileResponse, JsonResponse, HttpResponse, FileResponse
@@ -21,8 +21,51 @@ from django.db.models import F
 from django.db.models import Count
 from datetime import timedelta
 from django.db.models import Q
+from .utils import send_push_notification_to_admins
 
 app_celery = Celery()
+
+from django.http import JsonResponse
+
+def get_notifications_for_user(user):
+    return Notification.objects.filter(
+        Q(user=user) | Q(user__isnull=True),
+        read=False
+    ).order_by('-created_at')
+
+@login_required
+def notifications_check(request):
+    user = request.user
+    notifications_qs = Notification.objects.filter(user=user, is_read=False).order_by('-created_at')[:10]
+    notifications = list(notifications_qs.values('id', 'message', 'created_at'))
+    count = len(notifications)
+    for n in notifications:
+        n['created_at'] = n['created_at'].strftime("%d.%m.%Y %H:%M")
+    return JsonResponse({
+        "count": count,
+        "notifications": notifications,
+    })
+
+@login_required
+@csrf_exempt
+def push_subscribe(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        endpoint = data.get('endpoint')
+        if not endpoint:
+            return JsonResponse({'error': 'No endpoint'}, status=400)
+
+        # Existierende Subscriptions löschen, falls mehrfach vorhanden
+        PushSubscription.objects.filter(endpoint=endpoint).delete()
+
+        # Neue Subscription speichern
+        PushSubscription.objects.create(
+            user=request.user,
+            endpoint=endpoint,
+            data=data
+        )
+        return JsonResponse({'success': True})
+    return JsonResponse({'error': 'Invalid method'}, status=405)
 
 
 @login_required
@@ -89,7 +132,7 @@ def create_app_view(request):
             version = form.save_version(app)
             # Screenshots werden schon in form.save() gespeichert, kein doppeltes Speichern hier!
 
-            return redirect('version_status_view', version_id=version.id)
+            return redirect('version_app_status_view', version_id=version.id)
     else:
         form = AppWithVersionForm()
 
@@ -104,6 +147,12 @@ def version_status_app_view(request, version_id):
         try:
             start_background_check(version.id)
             messages.success(request, 'Die Prüfung läuft im Hintergrund.')
+
+            send_push_notification_to_admins(
+                title="Neue App-Prüfung gestartet",
+                body=f"Die Version {version.version_number} von {version.app.name} wird geprüft.",
+                url=f"/store/version/{version.id}/"
+            )
         except KombuOpError:
             messages.warning(request,
                 'Die Prüfung konnte nicht gestartet werden.')
@@ -512,15 +561,18 @@ def download_complete(request):
     return JsonResponse({'status': 'error'}, status=400)
 
 @csrf_exempt
-def save_subscription(request):
-    if request.method == "POST":
+def save_push_subscription(request):
+    if request.method == "POST" and request.user.is_authenticated:
         data = json.loads(request.body)
-        PushSubscription.objects.update_or_create(
-            endpoint=data["endpoint"],
-            defaults={"data": data}
+        endpoint = data["data"]["endpoint"]
+        # Update oder erstellen
+        subscription, _ = PushSubscription.objects.update_or_create(
+            user=request.user,
+            endpoint=endpoint,
+            defaults={"data": data["data"]}
         )
         return JsonResponse({"status": "ok"})
-    return JsonResponse({"error": "nur POST erlaubt"}, status=405)
+    return JsonResponse({"status": "error"}, status=400)
 
 @login_required
 def my_installed_apps(request):

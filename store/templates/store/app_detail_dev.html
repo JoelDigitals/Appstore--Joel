@@ -27,7 +27,11 @@
               <small>Status: {{ version.checking_status }}</small>
             </div>
             <div>
-              <a href="{% url 'version_status_view' version.id %}" class="btn btn-sm btn-outline-primary">Status</a>
+              {% if forloop.first %}
+                <a href="{% url 'version_app_status_view' version.id %}" class="btn btn-sm btn-outline-primary">Status</a>
+              {% else %}
+                <a href="{% url 'version_status' version.id %}" class="btn btn-sm btn-outline-secondary">Status</a>
+              {% endif %}
             </div>
           </div>
 
@@ -35,7 +39,7 @@
             <div class="mt-3">
               <strong>Prüfungsprotokoll:</strong>
               <pre class="bg-dark text-light p-3 rounded" style="white-space: pre-wrap; font-family: monospace;">
-              {{ version.checking_log }}
+                {{ version.checking_log }}
               </pre>
             </div>
           {% endif %}

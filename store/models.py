@@ -165,10 +165,17 @@ class Notification(models.Model):
     read = models.BooleanField(default=False)
     push_sent = models.BooleanField(default=False)
 
+    # Neue Felder, die deiner Funktion entsprechen:
+    app = models.ForeignKey('App', on_delete=models.CASCADE, null=True, blank=True)
+    version = models.ForeignKey('Version', on_delete=models.CASCADE, null=True, blank=True)
+    level = models.CharField(max_length=20, default='info')  # info, success, warning, error
+    timestamp = models.DateTimeField(default=timezone.now)
+
     def __str__(self):
         return f'{self.title} -> {"Alle" if not self.user else self.user.username}'
     
 class PushSubscription(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     endpoint = models.TextField(unique=True)
     data = models.JSONField()
     created_at = models.DateTimeField(auto_now_add=True)

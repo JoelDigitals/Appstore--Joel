@@ -1,198 +1,442 @@
 <!DOCTYPE html>
-<html>
+<html lang="de">
 <head>
-  <title>Flappy</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: sans-serif;
-      background: skyblue;
-      color: white;
-      text-align: center;
-    }
-    #menu, #instructions, #scoreBoard {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-    }
-    #startBtn, #playBtn, #restartBtn {
-      padding: 10px 20px;
-      font-size: 18px;
-      cursor: pointer;
-      background: #0078D7;
-      border: none;
-      border-radius: 8px;
-      color: white;
-      margin-top: 10px;
-    }
-    canvas {
-      display: none;
-      margin: auto;
-      background: skyblue;
-    }
-    #score {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      font-size: 18px;
-      background: rgba(0, 0, 0, 0.3);
-      padding: 5px 10px;
-      border-radius: 6px;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Flappy Bird - Neu & Verbessert</title>
+<style>
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0; padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(to bottom, #70c5ce 0%, #00aaff 100%);
+    color: #fff;
+    overflow: hidden;
+    user-select: none;
+  }
+  #menu, #instructions, #gameOverScreen {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.6);
+    padding: 30px 40px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 0 20px rgba(0,0,0,0.7);
+    max-width: 90vw;
+    width: 320px;
+  }
+  h1, h2 {
+    margin-bottom: 20px;
+    font-weight: 700;
+    text-shadow: 0 2px 5px rgba(0,0,0,0.6);
+  }
+  p {
+    margin: 10px 0 20px;
+    font-size: 1.1rem;
+  }
+  button {
+    background: #0099ff;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 5px 10px rgba(0,153,255,0.7);
+    transition: background 0.3s;
+  }
+  button:hover {
+    background: #007acc;
+  }
+  canvas {
+    display: block;
+    margin: auto;
+    background: #70c5ce;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.5);
+  }
+  #score {
+    position: absolute;
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-weight: 700;
+    font-size: 1.4rem;
+    text-shadow: 0 0 5px #000;
+    user-select: none;
+  }
+  #touchControls {
+    display: none;
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  #touchControls button {
+    font-size: 1.6rem;
+    padding: 15px 35px;
+    background: #00aaffcc;
+  }
+  /* Power-Up Schild */
+  #shieldIcon {
+    position: absolute;
+    top: 55px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 50px;
+    height: 50px;
+    pointer-events: none;
+    opacity: 0.7;
+  }
+</style>
 </head>
 <body>
 
+<!-- Start Menü -->
 <div id="menu">
-  <h1>Willkommen bei Flappy!</h1>
+  <h1>Flappy Bird</h1>
   <button id="startBtn">Start</button>
 </div>
 
+<!-- Anleitung -->
 <div id="instructions" style="display:none;">
   <h2>Steuerung</h2>
-  <p>Drücke <strong>Leertaste (Space)</strong>, um zu fliegen.</p>
+  <p>Tippe oder drücke <strong>Leertaste / Space</strong>, um zu fliegen.</p>
   <p>Fliege durch die Lücken zwischen den Rohren!</p>
   <button id="playBtn">Los geht's!</button>
 </div>
 
-<div id="scoreBoard" style="display:none;">
+<!-- Game Over -->
+<div id="gameOverScreen" style="display:none;">
   <h2>Game Over</h2>
   <p>Dein Punktestand: <span id="finalScore">0</span></p>
   <p>Highscore: <span id="highScoreDisplay">0</span></p>
   <button id="restartBtn">Erneut spielen</button>
 </div>
 
-<canvas id="flappy" width="320" height="480"></canvas>
+<!-- Scoreanzeige -->
 <div id="score" style="display:none;">Score: 0</div>
+<!-- Schild Icon (Power-Up) -->
+<img id="shieldIcon" src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Shield_icon.svg/1024px-Shield_icon.svg.png" alt="Schild" style="display:none;" />
+
+<!-- Canvas -->
+<canvas id="flappy" width="320" height="480"></canvas>
+
+<!-- Touch Steuerung -->
+<div id="touchControls">
+  <button id="touchFlyBtn">Fliegen</button>
+</div>
 
 <script>
+// === Variablen & Setup ===
 const canvas = document.getElementById("flappy");
 const ctx = canvas.getContext("2d");
-const scoreDisplay = document.getElementById("score");
-const highScoreDisplay = document.getElementById("highScoreDisplay");
-const finalScoreSpan = document.getElementById("finalScore");
 
-let birdY, velocity, score, highScore = localStorage.getItem("flappyHighScore") || 0;
-let gameStarted = false, gameOver = false;
-const gravity = 0.6;
-const birdX = 50;
+const scoreDisplay = document.getElementById("score");
+const finalScoreSpan = document.getElementById("finalScore");
+const highScoreDisplay = document.getElementById("highScoreDisplay");
+const shieldIcon = document.getElementById("shieldIcon");
+
+const touchControls = document.getElementById("touchControls");
+const touchFlyBtn = document.getElementById("touchFlyBtn");
+
+let birdY, velocity, score;
+let highScore = localStorage.getItem("flappyHighScore") || 0;
+highScore = Number(highScore);
+
 let pipes = [];
 let frames = 0;
+let gameStarted = false;
+let gameOver = false;
 
-function resetGame() {
-  birdY = 200;
-  velocity = 0;
-  score = 0;
-  pipes = [];
-  frames = 0;
-  gameStarted = true;
-  gameOver = false;
-  canvas.style.display = "block";
-  scoreDisplay.style.display = "block";
-  document.getElementById("scoreBoard").style.display = "none";
-}
+let gravity = 0.15; // sanftere Gravitation
+let velocityUp = -3; // Sprungkraft
+const birdX = 50;
+const birdSize = 20;
 
+let speed = 0.5;  // Startgeschwindigkeit der Rohre
+const maxSpeed = 5;
+let nextSpeedUp = 10;
+
+let gapSizeStart = 160; // Start-Lücke zwischen Rohren
+const gapSizeMin = 110; // Mindest-Lücke (steigt nach oben, also wird es schwerer)
+const gapDecreaseRate = 0.05;
+
+let shieldActive = false;
+const shieldDurationFrames = 180; // Schild 3 Sekunden (60 FPS)
+let shieldFramesLeft = 0;
+
+// Sounds (Grundgeräusche)
+const soundFlap = new Audio("https://actions.google.com/sounds/v1/animals/bird_flapping_wings.ogg");
+const soundPoint = new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
+const soundHit = new Audio("https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg");
+const soundShield = new Audio("https://actions.google.com/sounds/v1/cartoon/slide_whistle_to_drum_hit.ogg");
+
+// Vogel Bild (einfacher Kreis mit Flügeln)
 function drawBird() {
-  ctx.fillStyle = "yellow";
-  ctx.fillRect(birdX, birdY, 20, 20);
+  ctx.save();
+  ctx.translate(birdX + birdSize/2, birdY + birdSize/2);
+  let tilt = Math.min(Math.max(velocity * 3, -25), 25);
+  ctx.rotate(tilt * Math.PI / 180);
+  // Körper
+  ctx.fillStyle = "#FFD93B";
+  ctx.beginPath();
+  ctx.ellipse(0, 0, birdSize/2, birdSize/2 * 0.8, 0, 0, Math.PI*2);
+  ctx.fill();
+  // Flügel
+  ctx.fillStyle = "#FFC93B";
+  ctx.beginPath();
+  ctx.moveTo(-birdSize/4, 0);
+  ctx.quadraticCurveTo(-birdSize/3, -birdSize/2, 0, -birdSize/3);
+  ctx.quadraticCurveTo(birdSize/6, -birdSize/4, birdSize/4, 0);
+  ctx.fill();
+  // Auge
+  ctx.fillStyle = "#222";
+  ctx.beginPath();
+  ctx.arc(birdSize/6, -birdSize/10, birdSize/12, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  // Schild (Power-Up) rund um Vogel
+  if(shieldActive) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(0, 255, 255, 0.7)';
+    ctx.lineWidth = 4;
+    ctx.shadowColor = 'aqua';
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.ellipse(birdX + birdSize/2, birdY + birdSize/2, birdSize/2+8, birdSize/2+8, 0, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+  }
 }
 
+// Rohre zeichnen
 function drawPipes() {
-  ctx.fillStyle = "green";
   pipes.forEach(pipe => {
-    ctx.fillRect(pipe.x, 0, 40, pipe.top);
-    ctx.fillRect(pipe.x, pipe.top + pipe.gap, 40, 480);
+    // Oberes Rohr
+    ctx.fillStyle = "#2e7d32";
+    ctx.shadowColor = "#1b5e20";
+    ctx.shadowBlur = 12;
+    ctx.fillRect(pipe.x, 0, pipe.width, pipe.top);
+    // Unteres Rohr
+    ctx.fillRect(pipe.x, pipe.top + pipe.gap, pipe.width, canvas.height - pipe.top - pipe.gap);
+
+    // Highlights für Rohre
+    ctx.fillStyle = "#4caf50";
+    ctx.fillRect(pipe.x + pipe.width/4, pipe.top - 5, pipe.width/2, 10);
+    ctx.fillRect(pipe.x + pipe.width/4, pipe.top + pipe.gap - 5, pipe.width/2, 10);
   });
 }
 
+// Rohre updaten & generieren
 function updatePipes() {
-  for (let i = pipes.length - 1; i >= 0; i--) {
-    pipes[i].x -= 2;
+  for(let i = pipes.length - 1; i >= 0; i--) {
+    pipes[i].x -= speed;
 
-    if (!pipes[i].scored && pipes[i].x + 40 < birdX) {
+    // Punkt zählen, wenn Vogel vorbeifliegt
+    if(!pipes[i].scored && pipes[i].x + pipes[i].width < birdX) {
       score++;
       pipes[i].scored = true;
+      soundPoint.play();
+
+      // Geschwindigkeit steigern alle 10 Punkte
+      if(score >= nextSpeedUp && speed < maxSpeed) {
+        speed += 0.25;
+        nextSpeedUp += 20;
+      }
+
+      // Lücke nach und nach kleiner machen (schwieriger)
+      gapSizeStart = Math.max(gapSizeMin, gapSizeStart - gapDecreaseRate);
     }
 
-    if (
-      birdX + 20 > pipes[i].x && birdX < pipes[i].x + 40 &&
-      (birdY < pipes[i].top || birdY + 20 > pipes[i].top + pipes[i].gap)
+    // Kollision prüfen
+    if(
+      birdX + birdSize > pipes[i].x &&
+      birdX < pipes[i].x + pipes[i].width &&
+      (birdY < pipes[i].top || birdY + birdSize > pipes[i].top + pipes[i].gap)
     ) {
-      endGame();
+      if(shieldActive) {
+        // Schild verbraucht, weiterfliegen
+        shieldActive = false;
+        shieldFramesLeft = 0;
+        soundShield.play();
+      } else {
+        endGame();
+      }
     }
 
-    if (pipes[i].x + 40 < 0) pipes.splice(i, 1);
+    // Rohr entfernen, wenn aus Bildschirm
+    if(pipes[i].x + pipes[i].width < 0) pipes.splice(i, 1);
   }
 
-  if (frames % 90 === 0) {
-    let top = Math.floor(Math.random() * 200) + 50;
-    pipes.push({ x: 320, top: top, gap: 100, scored: false });
+  // Rohre erzeugen mit großem Abstand am Anfang (Frames < 200)
+  const spawnInterval = frames < 200 ? 220 : 150;
+  if(frames % spawnInterval === 0) {
+    let top = Math.floor(Math.random() * 180) + 40;
+    pipes.push({ x: canvas.width, top: top, gap: gapSizeStart, width: 50, scored: false });
   }
 }
 
-function draw() {
-  ctx.clearRect(0, 0, 320, 480);
-  drawPipes();
-  drawBird();
-}
-
-function update() {
-  if (!gameStarted || gameOver) return;
+// Vogel Position updaten
+function updateBird() {
   velocity += gravity;
   birdY += velocity;
-  if (birdY > 460 || birdY < 0) {
-    endGame();
+
+  // Boden / Himmel Begrenzung
+  if(birdY + birdSize > canvas.height) {
+    if(shieldActive) {
+      shieldActive = false;
+      shieldFramesLeft = 0;
+      soundShield.play();
+      birdY = canvas.height - birdSize;
+      velocity = 0;
+    } else {
+      endGame();
+    }
   }
+  if(birdY < 0) {
+    birdY = 0;
+    velocity = 0;
+  }
+}
+
+// Game Loop
+function gameLoop() {
+  if(!gameStarted) return;
+  frames++;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  updateBird();
   updatePipes();
+
+  drawPipes();
+  drawBird();
+
   scoreDisplay.textContent = "Score: " + score;
-}
 
-function loop() {
-  if (gameStarted && !gameOver) {
-    update();
-    draw();
-    frames++;
+  // Schild Power-Up Timer
+  if(shieldActive) {
+    shieldFramesLeft--;
+    shieldIcon.style.display = "block";
+    shieldIcon.style.left = (birdX + birdSize/2 - 25) + "px";
+    shieldIcon.style.top = (birdY - 30) + "px";
+
+    if(shieldFramesLeft <= 0) {
+      shieldActive = false;
+      shieldIcon.style.display = "none";
+    }
+  } else {
+    shieldIcon.style.display = "none";
   }
-  requestAnimationFrame(loop);
+
+  if(!gameOver) requestAnimationFrame(gameLoop);
 }
 
+// Spiel starten
+function startGame() {
+  birdY = canvas.height / 2;
+  velocity = 0;
+  score = 0;
+  frames = 0;
+  speed = 0.75;
+  nextSpeedUp = 10;
+  gapSizeStart = 160;
+  shieldActive = false;
+  shieldFramesLeft = 0;
+  pipes = [];
+  gameOver = false;
+  gameStarted = true;
+
+  scoreDisplay.style.display = "block";
+  document.getElementById("menu").style.display = "none";
+  document.getElementById("instructions").style.display = "block";
+  document.getElementById("gameOverScreen").style.display = "none";
+}
+
+// Start wirklich beginnen (nach Anleitung)
+function playGame() {
+  document.getElementById("instructions").style.display = "none";
+  gameStarted = true;
+  gameOver = false;
+  scoreDisplay.textContent = "Score: 0";
+  scoreDisplay.style.display = "block";
+  requestAnimationFrame(gameLoop);
+}
+
+// Game Over Funktion
 function endGame() {
   gameOver = true;
   gameStarted = false;
-  canvas.style.display = "none";
-  scoreDisplay.style.display = "none";
+  soundHit.play();
+
   finalScoreSpan.textContent = score;
-  if (score > highScore) {
+  if(score > highScore) {
     highScore = score;
     localStorage.setItem("flappyHighScore", highScore);
   }
   highScoreDisplay.textContent = highScore;
-  document.getElementById("scoreBoard").style.display = "block";
+
+  scoreDisplay.style.display = "none";
+  document.getElementById("gameOverScreen").style.display = "block";
 }
 
-document.getElementById("startBtn").addEventListener("click", () => {
-  document.getElementById("menu").style.display = "none";
-  document.getElementById("instructions").style.display = "block";
-});
+// Flug-Impulse (Taste oder Tap)
+function flap() {
+  if(!gameStarted) return;
+  velocity = velocityUp;
+  soundFlap.play();
+}
 
-document.getElementById("playBtn").addEventListener("click", () => {
-  document.getElementById("instructions").style.display = "none";
-  resetGame();
-});
-
-document.getElementById("restartBtn").addEventListener("click", () => {
-  resetGame();
-});
-
-window.addEventListener("keydown", e => {
-  if (e.code === "Space" && gameStarted && !gameOver) {
-    velocity = -8;
+// Tastatur-Steuerung
+document.addEventListener("keydown", e => {
+  if(e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW") {
+    e.preventDefault();
+    if(!gameStarted) startGame();
+    flap();
   }
 });
 
-loop();
-</script>
+// Touch-Steuerung
+touchFlyBtn.addEventListener("touchstart", e => {
+  e.preventDefault();
+  if(!gameStarted) startGame();
+  flap();
+});
+touchFlyBtn.addEventListener("mousedown", e => {
+  e.preventDefault();
+  if(!gameStarted) startGame();
+  flap();
+});
 
+// Buttons
+document.getElementById("startBtn").addEventListener("click", () => {
+  startGame();
+});
+document.getElementById("playBtn").addEventListener("click", () => {
+  playGame();
+});
+document.getElementById("restartBtn").addEventListener("click", () => {
+  document.getElementById("gameOverScreen").style.display = "none";
+  startGame();
+  playGame();
+});
+
+// Touchsteuerung anzeigen auf kleinen Bildschirmen
+function checkTouch() {
+  if("ontouchstart" in window || navigator.maxTouchPoints > 0) {
+    touchControls.style.display = "block";
+  } else {
+    touchControls.style.display = "none";
+  }
+}
+checkTouch();
+window.addEventListener("resize", checkTouch);
+
+</script>
 </body>
 </html>

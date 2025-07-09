@@ -11,7 +11,7 @@ urlpatterns = [
     path('developer/neu/', views.create_developer_view, name='create_developer'),
     path('developer/<int:developer_id>/edit/', views.edit_developer_view, name='edit_developer'),
     path('developer/<int:developer_id>/delete/', views.delete_developer_view, name='delete_developer'),
-    path('developer/<int:version_id>/app/check/', views.version_status_app_view, name='version_status_view'),#
+    path('developer/<int:version_id>/app/check/', views.version_status_app_view, name='version_app_status_view'),#
     path('developer/<int:version_id>/check/', views.version_status_view, name='version_status'),  # Alias für die Statusprüfung der App-Version
     path('developers/', views.developer_list, name='developer_list'),
     path('developer/<str:name>/', views.developer_detail_view, name='developer_detail'),
@@ -42,7 +42,8 @@ urlpatterns = [
 
     path("jds-appstore/", views.jds_appstore_apps, name="jds_apps"),
 
-    path('save-subscription/', views.save_subscription, name='save_subscription'),
+    path("save-subscription/", views.push_subscribe, name="push_subscribe"),
+    path('notifications/check/', views.get_notifications_for_user, name='notifications_check'),
 
     path('accounts/login/', views.login_view, name='login'),
 

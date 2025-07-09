@@ -134,6 +134,14 @@
         font-size: 14px;
     }
 
+    .alert-info {
+      background-color: rgba(13, 110, 253, 0.15);
+      color: #0d6efd;
+      border-color: #0d6efd;
+      border-radius: 10px;
+    }
+    
+
 
     /* Responsive Anpassungen */
 
@@ -166,11 +174,13 @@
       }
     }
   </style>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
 </head>
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark mb-4">
   <div class="container">
-    <a class="navbar-brand fw-bold" href="{% url 'home' %}">JDS Appstore</a>
+    <a class="navbar-brand fw-bold d-flex align-items-center" href="{% url 'home' %}"><img src="{% static 'images/logo.png' %}" alt="JDS Logo" style="height: 30px; margin-right: 8px;">JDS Appstore</a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Navigation umschalten">
       <span class="navbar-toggler-icon"></span>
     </button>
@@ -192,6 +202,30 @@
         {% if user.is_authenticated %}
           <li class="nav-item"><a href="{% url 'developer_dashboard' %}" class="nav-link">Dashboard</a></li>
           <li class="nav-item"><a href="{% url 'logout' %}" class="nav-link">Logout</a></li>
+          <li class="nav-item dropdown me-3">
+            <a class="nav-link dropdown-toggle position-relative" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" id="notificationsDropdown">
+              <i class="bi bi-bell" style="font-size: 1.2rem;"></i>
+              <span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display: {% if notifications_count > 0 %}inline{% else %}none{% endif %};">
+                {{ notifications_count }}
+                <span class="visually-hidden">ungelesene Benachrichtigungen</span>
+              </span>
+            </a>
+            <ul id="notifDropdown" class="dropdown-menu dropdown-menu-end" aria-labelledby="notificationsDropdown" style="min-width: 300px; max-height: 400px; overflow-y: auto;">
+              <li><h6 class="dropdown-header">Benachrichtigungen</h6></li>
+              {% if notifications %}
+                {% for notif in notifications %}
+                  <li><a class="dropdown-item small" href="#">
+                    {{ notif.message|truncatechars:60 }}<br>
+                    <small class="text-muted">{{ notif.created_at|date:"d.m.Y H:i" }}</small>
+                  </a></li>
+                {% endfor %}
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item text-center" href="{% url 'notifications_all' %}">Alle anzeigen</a></li>
+              {% else %}
+                <li><span class="dropdown-item small text-muted">Keine neuen Benachrichtigungen</span></li>
+              {% endif %}
+            </ul>
+          </li>
         {% else %}
           <li class="nav-item"><a href="{% url 'login' %}" class="nav-link">Login</a></li>
         {% endif %}
@@ -199,6 +233,34 @@
     </div>
   </div>
 </nav>
+
+<div id="cookie-banner" style="display:none; position: fixed; bottom: 0; left: 0; right: 0; background: #333333; border-top: 1px solid #555555; padding: 20px; z-index: 9999; font-size: 14px; color: white;">
+    <div style="max-width: 900px; margin: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+            <div style="flex: 1;">
+                <p id="cookie-message" style="color: white;"></p>
+                <div id="cookie-options" style="margin-top: 10px; color: white;">
+                    <label><input type="checkbox" id="essential" disabled checked> <span id="label-essential"></span></label><br>
+                    <label><input type="checkbox" id="functional"> <span id="label-functional"></span></label><br>
+                    <label><input type="checkbox" id="analytics"> <span id="label-analytics"></span></label><br>
+                    <label><input type="checkbox" id="marketing"> <span id="label-marketing"></span></label>
+                </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px; min-width: 200px;">
+                <select id="language-select" onchange="setLanguage(this.value)" style="color: black; padding: 5px;">
+                    <option value="en">English</option>
+                    <option value="de">Deutsch</option>
+                    <option value="fr">Français</option>
+                </select>
+                <button onclick="acceptAll()" class="button">Alle akzeptieren</button>
+                <button onclick="savePreferences()" class="button">Einstellungen speichern</button>
+                <button onclick="rejectEssentials()" class="button" style="background-color: #555;">Nur Essenzielle</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
 
 <div class="container">
   {% block content %}
@@ -212,10 +274,275 @@
   <a href="https://joel-digitals.onrender.com/terms" target="_blank" rel="noopener">AGB</a>
 
   <br>
-  <p>Version 1.0.0.0 BETA 0.0.5</p>
+  <p>Version 1.0.0.0 BETA 0.0.6</p>
   <br>    
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    const translations = {
+        de: {
+            message: "Wir verwenden Cookies, um Ihre Erfahrung zu verbessern. Sie können auswählen, welchen Kategorien Sie zustimmen.",
+            labels: {
+                essential: "Essenzielle Cookies (immer aktiv)",
+                functional: "Funktionale Cookies (z. B. Warenkorb speichern)",
+                analytics: "Analyse-Cookies (z. B. Besucherzahlen messen)",
+                marketing: "Marketing-Cookies (z. B. für Werbung & Tracking)"
+            },
+            buttons: {
+                acceptAll: "Alle akzeptieren",
+                save: "Einstellungen speichern",
+                essentialsOnly: "Nur Essenzielle"
+            }
+        },
+        en: {
+            message: "We use cookies to improve your experience. You can choose which categories to allow.",
+            labels: {
+                essential: "Essential cookies (always active)",
+                functional: "Functional cookies (e.g., save cart)",
+                analytics: "Analytics cookies (e.g., visitor stats)",
+                marketing: "Marketing cookies (e.g., ads & tracking)"
+            },
+            buttons: {
+                acceptAll: "Accept all",
+                save: "Save preferences",
+                essentialsOnly: "Essentials only"
+            }
+        },
+        fr: {
+            message: "Nous utilisons des cookies pour améliorer votre expérience. Choisissez les catégories que vous souhaitez autoriser.",
+            labels: {
+                essential: "Cookies essentiels (toujours actifs)",
+                functional: "Cookies fonctionnels (ex. panier)",
+                analytics: "Cookies d’analyse (ex. nombre de visiteurs)",
+                marketing: "Cookies marketing (ex. publicité)"
+            },
+            buttons: {
+                acceptAll: "Tout accepter",
+                save: "Enregistrer",
+                essentialsOnly: "Essentiels uniquement"
+            }
+        }
+    };
+
+    let currentLang = 'de';
+
+    function setLanguage(lang) {
+        currentLang = lang;
+        const t = translations[lang];
+        document.getElementById('cookie-message').innerText = t.message;
+        document.getElementById('label-essential').innerText = t.labels.essential;
+        document.getElementById('label-functional').innerText = t.labels.functional;
+        document.getElementById('label-analytics').innerText = t.labels.analytics;
+        document.getElementById('label-marketing').innerText = t.labels.marketing;
+        document.querySelector("button[onclick='acceptAll()']").innerText = t.buttons.acceptAll;
+        document.querySelector("button[onclick='savePreferences()']").innerText = t.buttons.save;
+        document.querySelector("button[onclick='rejectEssentials()']").innerText = t.buttons.essentialsOnly;
+    }
+
+    function showBannerIfNeeded() {
+        if (!localStorage.getItem('cookieConsent')) {
+            document.getElementById('cookie-banner').style.display = 'block';
+            setLanguage(currentLang);
+        }
+    }
+
+    function savePreferences() {
+        const consent = {
+            essential: true,
+            functional: document.getElementById('functional').checked,
+            analytics: document.getElementById('analytics').checked,
+            marketing: document.getElementById('marketing').checked
+        };
+        localStorage.setItem('cookieConsent', JSON.stringify(consent));
+        document.getElementById('cookie-banner').style.display = 'none';
+    }
+
+    function acceptAll() {
+        document.getElementById('functional').checked = true;
+        document.getElementById('analytics').checked = true;
+        document.getElementById('marketing').checked = true;
+        savePreferences();
+    }
+
+    function rejectEssentials() {
+        document.getElementById('functional').checked = false;
+        document.getElementById('analytics').checked = false;
+        document.getElementById('marketing').checked = false;
+        savePreferences();
+    }
+
+    document.addEventListener('DOMContentLoaded', showBannerIfNeeded);
+</script>
+
+{% if user.is_authenticated %}
+<script>
+  async function fetchNotifications() {
+    try {
+      const response = await fetch("{% url 'notifications_check' %}", {
+        method: "GET",
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          "Accept": "application/json"
+        },
+        credentials: "same-origin"
+      });
+
+      if (!response.ok) throw new Error("Netzwerkfehler");
+
+      const data = await response.json();
+
+      // Badge aktualisieren
+      const badge = document.getElementById("notifBadge");
+      if (data.count > 0) {
+        badge.style.display = "inline";
+        badge.textContent = data.count;
+        const sr = document.createElement("span");
+        sr.className = "visually-hidden";
+        sr.textContent = "ungelesene Benachrichtigungen";
+        badge.appendChild(sr);
+      } else {
+        badge.style.display = "none";
+      }
+
+      // Dropdown aktualisieren
+      const dropdown = document.getElementById("notifDropdown");
+      // Zuerst alle bisherigen Benachrichtigungen entfernen außer Header und "Alle anzeigen"
+      dropdown.querySelectorAll("li:not(:first-child):not(:last-child):not(:nth-last-child(2))").forEach(el => el.remove());
+
+      if (data.notifications.length > 0) {
+        data.notifications.forEach(notif => {
+          const li = document.createElement("li");
+          const a = document.createElement("a");
+          a.className = "dropdown-item small";
+          a.href = "#";  // ggf. anpassen, wenn Links vorhanden
+          a.innerHTML = `${notif.message.substring(0, 60)}<br><small class="text-muted">${notif.created_at}</small>`;
+          li.appendChild(a);
+          // Vor dem letzten Divider einfügen
+          const divider = dropdown.querySelector("li.dropdown-divider");
+          dropdown.insertBefore(li, divider);
+        });
+      } else {
+        const li = document.createElement("li");
+        li.innerHTML = '<span class="dropdown-item small text-muted">Keine neuen Benachrichtigungen</span>';
+        const divider = dropdown.querySelector("li.dropdown-divider");
+        dropdown.insertBefore(li, divider);
+      }
+    } catch (error) {
+      console.error("Fehler beim Laden der Benachrichtigungen:", error);
+    }
+  }
+
+  // Initiales Laden + alle 15 Sekunden neu laden
+  fetchNotifications();
+  setInterval(fetchNotifications, 15000);
+</script>
+{% endif %}
+
+<script>
+  // Prüfe lokalen Speicher
+  const pushPermissionStored = localStorage.getItem('pushAllowed');
+
+  function showPushRequestBanner() {
+    // Einfacher Banner am unteren Rand (Style kannst du anpassen)
+    const banner = document.createElement('div');
+    banner.id = 'pushRequestBanner';
+    banner.style = `
+      position: fixed; bottom: 0; left: 0; right: 0; background: #222; color: white; 
+      padding: 15px; text-align: center; z-index: 10000; font-family: Roboto, sans-serif;
+    `;
+    banner.innerHTML = `
+      <span>Möchtest du Push-Benachrichtigungen aktivieren?</span>
+      <button id="allowPushBtn" style="margin-left:1rem; padding: 5px 10px;">Erlauben</button>
+      <button id="denyPushBtn" style="margin-left:1rem; padding: 5px 10px;">Ablehnen</button>
+    `;
+    document.body.appendChild(banner);
+
+    document.getElementById('allowPushBtn').onclick = async () => {
+      const perm = await Notification.requestPermission();
+      if (perm === 'granted') {
+        subscribeUserToPush();
+        localStorage.setItem('pushAllowed', 'true');
+      } else {
+        localStorage.setItem('pushAllowed', 'false');
+      }
+      banner.remove();
+    };
+
+    document.getElementById('denyPushBtn').onclick = () => {
+      localStorage.setItem('pushAllowed', 'false');
+      banner.remove();
+    };
+  }
+
+  async function subscribeUserToPush() {
+    if (!('serviceWorker' in navigator)) {
+      console.warn('Service Worker nicht unterstützt');
+      return;
+    }
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+
+      // VAPID-Public-Key vom Backend abrufen oder hier hardcoden
+      const vapidPublicKey = "{{ vapid_public_key }}"; // Django Context-Variable (string base64url)
+
+      const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: convertedVapidKey
+      });
+
+      // Subscription an Backend senden
+      await fetch("{% url 'push_subscribe' %}", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token }}',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify(subscription.toJSON())
+      });
+
+      console.log('Push-Benachrichtigung registriert');
+    } catch (err) {
+      console.error('Fehler bei der Push-Registrierung:', err);
+    }
+  }
+
+  // Hilfsfunktion: Base64URL zu Uint8Array (für VAPID-Key)
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+      .replace(/\-/g, '+')
+      .replace(/_/g, '/');
+
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for(let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
+
+  // Hauptlogik: Prüfen ob gefragt werden muss
+  if (pushPermissionStored === null) {
+    // Noch nicht entschieden
+    if (Notification.permission === 'default') {
+      // Noch nie gefragt → Banner anzeigen
+      showPushRequestBanner();
+    } else if (Notification.permission === 'denied') {
+      // Nutzer hat Browserseitig abgelehnt, trotzdem localStorage speichern, damit kein Banner
+      localStorage.setItem('pushAllowed', 'false');
+    } else if (Notification.permission === 'granted') {
+      localStorage.setItem('pushAllowed', 'true');
+      // Optional: direkt abonnieren, wenn noch nicht geschehen
+      subscribeUserToPush();
+    }
+  }
+</script>
 </body>
 </html>

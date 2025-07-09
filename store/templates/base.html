@@ -234,6 +234,19 @@
   </div>
 </nav>
 
+<div id="notification-banner" style="display:none; position: fixed; bottom: 0; left: 0; right: 0; background: #222; border-top: 1px solid #444; padding: 15px; z-index: 9998; font-size: 14px; color: white;">
+  <div style="max-width: 900px; margin: auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+    <div style="flex: 1;">
+      <strong>Möchtest du Benachrichtigungen erhalten?</strong><br>
+      Aktiviere Push-Benachrichtigungen, um über Updates, neue Apps und wichtige Informationen informiert zu werden.
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 5px; min-width: 180px;">
+      <button onclick="enableNotifications()" class="btn btn-sm btn-primary">Benachrichtigungen aktivieren</button>
+      <button onclick="dismissNotificationBanner()" class="btn btn-sm btn-secondary" style="background-color: #444; color: #fff;">Nicht jetzt</button>
+    </div>
+  </div>
+</div>
+
 <div id="cookie-banner" style="display:none; position: fixed; bottom: 0; left: 0; right: 0; background: #333333; border-top: 1px solid #555555; padding: 20px; z-index: 9999; font-size: 14px; color: white;">
     <div style="max-width: 900px; margin: auto;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
@@ -274,7 +287,7 @@
   <a href="https://joel-digitals.onrender.com/terms" target="_blank" rel="noopener">AGB</a>
 
   <br>
-  <p>Version 1.0.0.0 BETA 0.0.6</p>
+  <p>Version 1.0.0.0 BETA 0.0.7</p>
   <br>    
 </footer>
 
@@ -375,6 +388,42 @@
 
     document.addEventListener('DOMContentLoaded', showBannerIfNeeded);
 </script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    if ('Notification' in window) {
+      const notifPermission = Notification.permission;
+      const bannerDismissed = localStorage.getItem("notifBannerDismissed");
+
+      if (notifPermission === "default" && !bannerDismissed) {
+        document.getElementById("notification-banner").style.display = "block";
+      }
+    }
+  });
+
+  function enableNotifications() {
+    Notification.requestPermission().then(permission => {
+      localStorage.setItem("notifBannerDismissed", "true");
+      document.getElementById("notification-banner").style.display = "none";
+
+      if (permission === "granted") {
+        // Optional: Ein Beispiel zeigen oder registrieren
+        new Notification("Benachrichtigungen aktiviert! 🎉", {
+          body: "Du erhältst nun wichtige Updates.",
+          icon: "/static/images/logo.png"
+        });
+
+        // Hier kannst du zusätzlich deinen ServiceWorker registrieren
+        // navigator.serviceWorker.register('/sw.js');
+      }
+    });
+  }
+
+  function dismissNotificationBanner() {
+    localStorage.setItem("notifBannerDismissed", "true");
+    document.getElementById("notification-banner").style.display = "none";
+  }
+</script>
+
 
 {% if user.is_authenticated %}
 <script>

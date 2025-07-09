@@ -264,7 +264,6 @@ def create_developer_view(request):
 
     return render(request, 'store/create_developer.html', {'form': form})
 
-@login_required
 def home(request):
     query = request.GET.get('q', '')
     user = request.user

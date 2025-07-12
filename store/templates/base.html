@@ -213,11 +213,17 @@
             <ul id="notifDropdown" class="dropdown-menu dropdown-menu-end" aria-labelledby="notificationsDropdown" style="min-width: 300px; max-height: 400px; overflow-y: auto;">
               <li><h6 class="dropdown-header">Benachrichtigungen</h6></li>
               {% if notifications %}
+                <a class="dropdown-item small" href="{% url 'mark_all_notifications_read' %}">
+                  <strong>Alle gelesen</strong>
                 {% for notif in notifications %}
-                  <li><a class="dropdown-item small" href="#">
+                  <li><a class="dropdown-item small" href="{% url 'notification_detail' notif.id %}">
+                    {% if not notif.read and notif.user %}
+                      <span class="badge bg-primary me-2">Neu</span>
+                    {% endif %}
                     {{ notif.message|truncatechars:60 }}<br>
                     <small class="text-muted">{{ notif.created_at|date:"d.m.Y H:i" }}</small>
                   </a></li>
+                  
                 {% endfor %}
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item text-center" href="{% url 'notifications_all' %}">Alle anzeigen</a></li>
@@ -287,7 +293,7 @@
   <a href="https://joel-digitals.onrender.com/terms" target="_blank" rel="noopener">AGB</a>
 
   <br>
-  <p>Version 1.0.0.0 BETA 0.0.7</p>
+  <p>Version 1.0.0.0 BETA 0.0.8</p>
   <br>    
 </footer>
 

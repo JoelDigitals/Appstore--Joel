@@ -122,6 +122,9 @@ class VersionDownload(models.Model):
     class Meta:
         unique_together = ('user', 'version')
 
+    def __str__(self):
+        return f"{self.user.username} downloaded {self.version.app.name} v{self.version.version_number} on {self.downloaded_at.strftime('%Y-%m-%d %H:%M:%S')}"
+
 class AppScreenshot(models.Model):
     app = models.ForeignKey(App, on_delete=models.CASCADE, related_name='screenshots')
     image = models.ImageField(upload_to='app_screenshots/')

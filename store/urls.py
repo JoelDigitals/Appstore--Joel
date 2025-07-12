@@ -21,6 +21,9 @@ urlpatterns = [
     path('developer/app/<int:app_id>/edit/', views.edit_app_view, name='edit_app'),
     path('developer/app/<int:app_id>/delete/', views.delete_app_view, name='delete_app'),
     path('developer/app/<int:app_id>/upload-version/', views.upload_version, name='upload_version'),
+
+
+    
     
 
     path('download/media/', views.download_all_media, name='download_media'),
@@ -33,17 +36,26 @@ urlpatterns = [
     path('app/<int:app_id>/', views.app_detail_view, name='app_detail'),
     path('app/<int:app_id>/upload-version/', views.upload_version, name='upload_version'),
 
-    path('download/<int:version_id>/', views.download_app_view, name='download_app'),
-    path('download/<int:version_id>/success/', views.download_success_view, name='download_success'),
-    path('download/<int:version_id>/file/', views.download_file_view, name='download_file'),
-    path('download/start/<int:version_id>/', views.download_app_start, name='download_start'),
-    path('download/file/<int:version_id>/', views.download_file_view, name='download_file'),
-    path('download/complete/', views.download_complete, name='download_complete'),
+    #download new urls
+    path("api/get_download_token/", views.get_temporary_download_link, name="get_download_token"),
+    path("api/download/<str:token>/", views.download_file_view, name="download_file"),
+    path('api/download_start/', views.download_start_api, name='download_start_api'),
+    path('api/download_complete/', views.download_complete, name='download_complete'),
+
+    #download old urls
+    #path('download/start/<int:version_id>/', views.download_app_start, name='download_start'),
+    #path('download/file/<int:version_id>/', views.download_file_view, name='download_file'),
+    #path('download/complete/', views.download_complete, name='download_complete'),
 
     path("jds-appstore/", views.jds_appstore_apps, name="jds_apps"),
 
     path("save-subscription/", views.push_subscribe, name="push_subscribe"),
     path('notifications/check/', views.get_notifications_for_user, name='notifications_check'),
+    path('notifications/', views.notifications_view, name='notifications_all'),
+    path('notifications/subscribe/', views.subscribe_notifications, name='subscribe_notifications'),
+    path('notifications/unsubscribe/', views.unsubscribe_notifications, name='unsubscribe_notifications'),
+    path('notifications/<int:pk>/', views.notification_detail, name='notification_detail'),
+    path('notifications/mark-all/', views.mark_all_notifications_read, name='mark_all_notifications_read'),
 
     path('accounts/login/', views.login_view, name='login'),
 

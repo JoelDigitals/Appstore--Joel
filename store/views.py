@@ -7,7 +7,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from .models import App, Version, PushSubscription, Developer, VersionDownload, CATEGORY_CHOICES, Notification
 from .forms import AppWithVersionForm, VersionForm, DeveloperForm, AppEditForm
 from .tasks import start_background_check, start_background_check_version
-from django.http import FileResponse, JsonResponse, HttpResponse, FileResponse
+from django.http import FileResponse, JsonResponse, HttpResponse, FileResponse, HttpResponseNotFound, HttpResponseForbidden
 import json
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
@@ -22,16 +22,25 @@ from django.db.models import Count
 from datetime import timedelta
 from django.db.models import Q
 from .utils import send_push_notification_to_admins
+from django.utils.crypto import get_random_string
+from django.core.cache import cache
 
 app_celery = Celery()
 
 from django.http import JsonResponse
 
 def get_notifications_for_user(user):
+    notification_count = cache.get(f'notification_count_{user.id}')
+    if notification_count is None:
+        notification_count = Notification.objects.filter(user=user, read=False).count()
+        cache.set(f'notification_count_{user.id}', notification_count, timeout=60*5)  # Cache für 5 Minuten
     return Notification.objects.filter(
-        Q(user=user) | Q(user__isnull=True),
+        Q(user=user),
         read=False
     ).order_by('-created_at')
+
+
+
 
 @login_required
 def notifications_check(request):
@@ -317,6 +326,18 @@ def home(request):
     query = request.GET.get('q', '')
     user = request.user
 
+    if user.is_authenticated:
+        notifications = Notification.objects.filter(
+            Q(user=user),  # Benachrichtigungen für diesen Nutzer 
+            read=False  # Nur ungelesene Benachrichtigungen
+        ).order_by('-created_at')
+        notifications_count = notifications.count()
+    else:
+        notifications = Notification.objects.filter(
+            user__isnull=True,  # Benachrichtigungen für alle Nutzer
+            read=False  # Nur ungelesene Benachrichtigungen
+        ).order_by('-created_at')
+
     # Alle veröffentlichten Apps
     all_apps = App.objects.filter(
         published=True,
@@ -371,6 +392,8 @@ def home(request):
         'top_downloads': top_downloads,
         'trending_apps': trending_apps,
         'recommended_apps': recommended_apps,
+        'notifications': notifications,
+        'notifications_count': notifications_count,
     }
     return render(request, 'store/home.html', context)
 
@@ -387,35 +410,69 @@ def platform_view(request, platform_name):
     context = {'apps': apps, 'platform': platform_name, 'query': query}
     return render(request, 'store/platform.html', context)
 
-def app_detail_view(request, app_id):
-    app = get_object_or_404(App, id=app_id, published=True)
-    latest_version = app.versions.filter(approved=True).order_by('-uploaded_at').first()
+@login_required
+def notifications_view(request):
+    user = request.user
+    notifications = Notification.objects.filter(
+        Q(user=user) | Q(user__isnull=True)
+    ).order_by('-timestamp')
+    unread_count = notifications.filter(read=False, user=user).count()
 
-    # Vorschläge basierend auf Plattform + Kategorie oder Unterkategorie
-    suggestions = App.objects.filter(
-        platform=app.platform,
-        published=True,
-        published_at__lte=timezone.now()
-    ).filter(
-        Q(category=app.category) | Q(subcategory=app.subcategory)
-    ).exclude(id=app.id).distinct()[:8]
-
-    user_installed_version = None
-    if request.user.is_authenticated:
-        user_downloads = VersionDownload.objects.filter(
-            user=request.user,
-            version__app=app
-        ).order_by('-version__uploaded_at')
-        if user_downloads.exists():
-            user_installed_version = user_downloads.first().version
-
-    return render(request, 'store/app_detail.html', {
-        'app': app,
-        'latest_version': latest_version,
-        'suggestions': suggestions,
-        'user_installed_version': user_installed_version,
-        'category': dict(CATEGORY_CHOICES).get(app.category, app.category),  # lesbarer Name
+    return render(request, 'store/notifications.html', {
+        'notifications': notifications,
+        'count': unread_count,
     })
+
+@login_required
+def notification_detail(request, pk):
+    notification = get_object_or_404(Notification, pk=pk)
+
+    # Falls es eine persönliche Nachricht ist → als gelesen markieren
+    if notification.user == request.user and not notification.read:
+        notification.read = True
+        notification.save()
+
+    return render(request, 'store/notification_detail.html', {
+        'notification': notification
+    })
+
+@login_required
+def mark_all_notifications_read(request):
+    if request.method == 'POST':
+        Notification.objects.filter(user=request.user, read=False).update(read=True)
+    return redirect('notifications')
+
+@login_required
+def subscribe_notifications(request):
+    if request.method == 'POST':
+        endpoint = request.POST.get('endpoint')
+        if not endpoint:
+            messages.error(request, 'Kein Endpoint angegeben.')
+            return redirect('notifications_all')
+
+        # Existierende Subscriptions löschen, falls mehrfach vorhanden
+        PushSubscription.objects.filter(endpoint=endpoint).delete()
+
+        # Neue Subscription speichern
+        PushSubscription.objects.create(
+            user=request.user,
+            endpoint=endpoint
+        )
+        messages.success(request, 'Du hast dich erfolgreich für Benachrichtigungen angemeldet.')
+    return redirect('notifications_all')
+
+@login_required
+def unsubscribe_notifications(request):
+    if request.method == 'POST':
+        endpoint = request.POST.get('endpoint')
+        if not endpoint:
+            messages.error(request, 'Kein Endpoint angegeben.')
+            return redirect('notifications_all')
+
+        # Subscription löschen
+        PushSubscription.objects.filter(user=request.user, endpoint=endpoint).delete()
+        messages.success(request, 'Du hast dich erfolgreich von Benachrichtigungen abgemeldet.')
+    return redirect('notifications_all')
 
 def developer_detail_view(request, name):
     # Name ggf. entschlüsseln/entschlacken
@@ -453,6 +510,117 @@ def upload_version(request, app_id):
 
     return render(request, 'store/upload_version.html', {'form': form, 'app': app})
 
+
+
+def app_detail_view(request, app_id):
+    app = get_object_or_404(App, id=app_id, published=True)
+    latest_version = app.versions.filter(approved=True).order_by('-uploaded_at').first()
+
+    suggestions = App.objects.filter(
+        platform=app.platform,
+        published=True,
+        published_at__lte=timezone.now()
+    ).filter(
+        Q(category=app.category) | Q(subcategory=app.subcategory)
+    ).exclude(id=app.id).distinct()[:8]
+
+    user_installed_version = None
+    if request.user.is_authenticated:
+        vd = VersionDownload.objects.filter(
+            user=request.user, version__app=app
+        ).order_by('-version__uploaded_at').first()
+        if vd:
+            user_installed_version = vd.version
+
+    return render(request, 'store/app_detail.html', {
+        'app': app,
+        'latest_version': latest_version,
+        'suggestions': suggestions,
+        'user_installed_version': user_installed_version,
+    })
+
+#Download NEW
+@csrf_exempt
+@login_required
+def get_temporary_download_link(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    data = json.loads(request.body)
+    version_id = data.get('version_id')
+    version = get_object_or_404(Version, id=version_id, approved=True)
+    app = version.app
+
+    token = get_random_string(32)
+    cache.set(f"dl_token_{token}", version_id, timeout=60)  # gültig 60 Sekunden
+
+    return JsonResponse({'token': token})
+
+@login_required
+def download_file_view(request, token):
+    version_id = cache.get(f"dl_token_{token}")
+    if not version_id:
+        return HttpResponseForbidden("Ungültiger oder abgelaufener Token.")
+
+    version = get_object_or_404(Version, id=version_id, approved=True)
+
+    # Tracking
+    VersionDownload.objects.get_or_create(user=request.user, version=version)
+    App.objects.filter(id=version.app.id).update(download_count=F('download_count') + 1)
+
+    file_path = version.file.path
+    if not os.path.exists(file_path):
+        return HttpResponseNotFound("Datei nicht gefunden.")
+
+    response = FileResponse(open(file_path, 'rb'), as_attachment=True, filename=os.path.basename(file_path))
+    return response
+
+@csrf_exempt
+@login_required
+def download_start_api(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    data = json.loads(request.body)
+    version_id = data.get('version_id')
+    version = get_object_or_404(Version, id=version_id, approved=True)
+    app = version.app
+
+    # Zähler + Tracking
+    App.objects.filter(id=app.id).update(download_count=F('download_count') + 1)
+    VersionDownload.objects.get_or_create(user=request.user, version=version)
+
+    # Für Streaming-Download
+    file_path = version.file.path
+    total = os.path.getsize(file_path)
+    response = FileResponse(open(file_path, 'rb'), content_type='application/octet-stream')
+    response['Content-Length'] = total
+    response['X-Version-Id'] = str(version_id)
+    return response
+
+@csrf_exempt
+@login_required
+def download_complete(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        version_id = data.get('version_id')
+        version = get_object_or_404(Version, id=version_id)
+        if version.file and os.path.isfile(version.file.path):
+            try:
+                os.remove(version.file.path)
+            except Exception as e:
+                print(f"Fehler beim Löschen der Datei: {e}")
+        return JsonResponse({'status': 'ok'})
+    return JsonResponse({'status': 'error'}, status=400)
+
+
+
+
+
+
+
+
+# download old
 @login_required
 def download_app_view(request, version_id):
     version = get_object_or_404(Version, id=version_id, approved=True)
@@ -470,23 +638,6 @@ def download_app_view(request, version_id):
     # Wenn schon bestätigt, direkt zur Success-Seite
     return redirect('download_success', version_id=version_id)
 
-@login_required
-def download_success_view(request, version_id):
-    version = get_object_or_404(Version, id=version_id)
-    # Hier könntest du direkt den Download starten lassen (z.B. per Link/Button)
-    return render(request, 'store/download_success.html', {'version': version})
-
-@login_required
-def download_file_view(request, version_id):
-    # Endpoint zum echten Ausliefern der APK-Datei mit korrektem Content-Type
-    version = get_object_or_404(Version, id=version_id, approved=True)
-    response = FileResponse(
-        version.file.open('rb'),
-        as_attachment=True,
-        filename=version.file.name,
-        content_type='application/vnd.android.package-archive'  # wichtig für APK
-    )
-    return response
 
 @login_required
 def download_app_start(request, version_id):
@@ -538,7 +689,7 @@ def download_file_view(request, version_id):
 
 @csrf_exempt
 @login_required
-def download_complete(request):
+def download_complete_1(request):
     """
     Wird vom Client nach erfolgreicher Installation aufgerufen.
     Hier kann die APK-Datei gelöscht werden.

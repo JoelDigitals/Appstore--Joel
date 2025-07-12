@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block title %}Nachricht{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto mt-8 p-4 bg-gray-900 text-white rounded-lg shadow">
+    <h1 class="text-xl font-bold mb-2">Nachricht vom {{ notification.timestamp|date:"d.m.Y H:i" }}</h1>
+    <div class="mt-4 text-gray-100">{{ notification.message|safe }}</div>
+    <a href="{% url 'notifications_all' %}" class="mt-6 inline-block text-blue-400 hover:underline">Zurück zu den Benachrichtigungen</a>
+</div>
+
+<script>
+    {% if not notification.user %}
+    localStorage.setItem("read_global_{{ notification.id }}", true);
+    {% endif %}
+</script>
+{% endblock %}

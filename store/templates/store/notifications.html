@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}Benachrichtigungen{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto mt-8 p-4 bg-gray-900 text-white rounded-lg shadow">
+    <div class="flex justify-between items-center mb-4">
+        <h1 class="text-2xl font-bold">Benachrichtigungen ({{ count }})</h1>
+        <form method="post" action="{% url 'mark_all_notifications_read' %}">
+            {% csrf_token %}
+            <button type="submit" class="text-sm bg-blue-700 hover:bg-blue-800 px-3 py-1 rounded">
+                Alle als gelesen markieren
+            </button>
+        </form>
+    </div>
+
+    {% if notifications %}
+        <div class="space-y-2">
+            {% for n in notifications %}
+                <div
+                    class="p-3 rounded-md border border-gray-700 transition group flex items-start gap-2
+                        {% if not n.read and n.user %}
+                            bg-blue-800 font-semibold
+                        {% elif n.user %}
+                            bg-gray-800
+                        {% else %}
+                            bg-gray-800 group-[.read-local]:opacity-50
+                        {% endif %}
+                    "
+                    data-id="{{ n.id }}" data-global="{{ n.user|yesno:"false,true" }}"
+                >
+                    {% if not n.read and n.user %}
+                        <div class="mt-1 w-3 h-3 bg-blue-400 rounded-full flex-shrink-0"></div>
+                    {% elif not n.user %}
+                        <div class="mt-1 w-3 h-3 bg-blue-400 rounded-full flex-shrink-0 hidden read-indicator"></div>
+                    {% else %}
+                        <div class="mt-1 w-3 h-3 invisible"></div>
+                    {% endif %}
+
+                    <a href="{% url 'notification_detail' n.id %}" class="block w-full">
+                        <div class="text-sm text-gray-400">{{ n.timestamp|date:"d.m.Y H:i" }}</div>
+                        <div class="mt-1">{{ n.message|safe }}</div>
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-gray-400">Keine Benachrichtigungen vorhanden.</p>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    // Markiere globale Nachrichten als gelesen im LocalStorage
+    document.querySelectorAll("div[data-global='true']").forEach(item => {
+        const id = item.getAttribute("data-id");
+        const read = localStorage.getItem("read_global_" + id);
+
+        if (read) {
+            item.classList.add("read-local");
+            const indicator = item.querySelector(".read-indicator");
+            if (indicator) indicator.classList.add("hidden");
+        } else {
+            const indicator = item.querySelector(".read-indicator");
+            if (indicator) indicator.classList.remove("hidden");
+
+            item.addEventListener("click", () => {
+                localStorage.setItem("read_global_" + id, true);
+                if (indicator) indicator.classList.add("hidden");
+            });
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -504,7 +504,7 @@ def upload_version(request, app_id):
                     'Version hochgeladen – konnte Hintergrundprüfung nicht starten (Broker nicht erreichbar).'
                 )
 
-            return redirect('version_status')
+            return redirect('version_status', version_id=version.id)
     else:
         form = VersionForm()
 

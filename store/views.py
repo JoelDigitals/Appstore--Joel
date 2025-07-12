@@ -337,6 +337,10 @@ def home(request):
             user__isnull=True,  # Benachrichtigungen für alle Nutzer
             read=False  # Nur ungelesene Benachrichtigungen
         ).order_by('-created_at')
+        notifications_count = Notification.objects.filter(
+            user__isnull=True,
+            read=False
+        ).count()
 
     # Alle veröffentlichten Apps
     all_apps = App.objects.filter(
@@ -514,7 +518,14 @@ def upload_version(request, app_id):
 
 def app_detail_view(request, app_id):
     app = get_object_or_404(App, id=app_id, published=True)
-    latest_version = app.versions.filter(approved=True).order_by('-uploaded_at').first()
+    
+    latest_version = Version.objects.filter(
+        app=app,
+        approved=True,
+        uploaded_at__lte=timezone.now()
+    ).order_by('-uploaded_at').first()
+
+    print("Latest version:", latest_version.version_number, latest_version.uploaded_at)
 
     suggestions = App.objects.filter(
         platform=app.platform,
@@ -563,17 +574,26 @@ def download_file_view(request, token):
         return HttpResponseForbidden("Ungültiger oder abgelaufener Token.")
 
     version = get_object_or_404(Version, id=version_id, approved=True)
+    app = version.app
+
+    # Alte Version (falls vorhanden) löschen
+    last_download = VersionDownload.objects.filter(user=request.user, version__app=app).order_by('-downloaded_at').first()
+    if last_download and last_download.version != version:
+        old_file = last_download.version.file
+        if old_file and os.path.exists(old_file.path):
+            os.remove(old_file.path)  # 🧹 Alte Datei löschen
 
     # Tracking
     VersionDownload.objects.get_or_create(user=request.user, version=version)
-    App.objects.filter(id=version.app.id).update(download_count=F('download_count') + 1)
+    app.download_count = F('download_count') + 1
+    app.save(update_fields=["download_count"])
 
     file_path = version.file.path
     if not os.path.exists(file_path):
         return HttpResponseNotFound("Datei nicht gefunden.")
 
-    response = FileResponse(open(file_path, 'rb'), as_attachment=True, filename=os.path.basename(file_path))
-    return response
+    return FileResponse(open(file_path, 'rb'), as_attachment=True, filename=os.path.basename(file_path))
+
 
 @csrf_exempt
 @login_required

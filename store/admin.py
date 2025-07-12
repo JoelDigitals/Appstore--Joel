@@ -9,7 +9,6 @@ from .models import App, AppWarning, Notification, PushSubscription, Version, De
 # Normale Admin-Registrierungen:
 admin.site.register(App)
 admin.site.register(AppWarning)
-admin.site.register(Version)
 admin.site.register(Notification)
 admin.site.register(Developer)
 admin.site.register(AppScreenshot)
@@ -36,3 +35,14 @@ class PushSubscriptionAdmin(admin.ModelAdmin):
             except WebPushException as ex:
                 self.message_user(request, f"Fehler bei {sub.endpoint[:30]}: {ex}", level=messages.ERROR)
         self.message_user(request, "Benachrichtigungen gesendet.")
+
+@admin.register(Version)
+class VersionAdmin(admin.ModelAdmin):
+    list_display = ("app", "version_number", "uploaded_at", "checking_status", "approved")
+    list_filter = ("checking_status", "approved")
+    search_fields = ("app__name", "version_number")
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj and obj.checking_status == 'approved':
+            return self.readonly_fields + ('checking_log',)
+        return self.readonly_fields

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+
 {% block title %}{{ app.name }} – Joel Appstore{% endblock %}
 
 {% block content %}
@@ -10,11 +11,11 @@
       <div class="d-flex flex-column flex-md-row align-items-start gap-4 mb-5">
         <!-- App Icon mit Fortschrittskreis -->
         <div id="icon-container" class="position-relative" style="width: 100px; height: 100px;">
-          <img id="app-icon" src="{{ app.icon.url }}" alt="{{ app.name }} Icon" class="rounded shadow w-100 h-100">
-          <canvas id="progress-circle" width="100" height="100" class="position-absolute top-0 start-0"></canvas>
-          <div id="progress-text" class="position-absolute top-50 start-50 translate-middle text-white fw-bold d-none">0%</div>
+          <img id="app-icon" src="{{ app.icon.url }}" alt="{{ app.name }} Icon" class="rounded shadow w-100 h-100" style="transition: transform 0.3s ease;">
+          <canvas id="progress-circle" width="100" height="100" class="position-absolute top-0 start-0" style="pointer-events:none;"></canvas>
+          <div id="progress-text" class="position-absolute top-50 start-50 translate-middle text-white fw-bold d-none" style="user-select:none;">0%</div>
         </div>
-      
+
         <!-- App Info -->
         <div class="flex-grow-1">
           <h1 class="display-5 fw-bold text-light mb-2">{{ app.name }}</h1>
@@ -33,34 +34,28 @@
               Unbekannt
             {% endif %}
           </p>
-
-          
-
-        
+       
           <!-- Download Button -->
           {% if latest_version %}
             {% if user.is_authenticated %}
-              {% if user_installed_version %}
-                {% if user_installed_version.id == latest_version.id %}
-                  <button id="download-btn" class="btn btn-secondary btn-lg rounded-pill" disabled>
-                    Installiert
-                  </button>
-                {% else %}
-                  <button id="download-btn" class="btn btn-warning btn-lg rounded-pill">
-                    Aktualisieren
-                  </button>
-                {% endif %}
+              {% if user_installed_version and user_installed_version.id == latest_version.id %}
+                <button class="btn btn-secondary btn-lg rounded-pill" disabled>
+                  Installiert
+                </button>
               {% else %}
-                <button id="download-btn" class="btn btn-success btn-lg rounded-pill">
-                  Download
+                <button id="downloadBtn" class="btn btn-success btn-lg rounded-pill">
+                  {% if user_installed_version %}
+                    Aktualisieren
+                  {% else %}
+                    Download
+                  {% endif %}
                 </button>
               {% endif %}
             {% else %}
-              <a href="{% url 'login' %}?next={{ request.path }}" class="btn btn-primary btn-lg rounded-pill">
-                Zum Download anmelden
-              </a>
+              <a href="{% url 'login' %}" class="btn btn-primary btn-lg rounded-pill">Anmelden zum Download</a>
             {% endif %}
           {% endif %}
+          
         </div>
       </div>
 
@@ -222,126 +217,171 @@
     transform: scale(1.05);
   }
   #app-icon {
-  transition: transform 0.3s ease;
-}
+    transition: transform 0.3s ease;
+  }
+  /* Icon wird kleiner, wenn Kreis aktiv */
+  .icon-loading #app-icon {
+    transform: scale(0.7);
+    filter: brightness(0.9);
+  }
 
+  /* Fortschritts-Kreis Halb-Drehung Animation */
+  @keyframes half-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(180deg); }
+  }
+  .half-spin {
+    animation: half-spin 2s linear infinite;
+  }
 </style>
+
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-  const downloadBtn = document.getElementById('download-btn');
-  const progressCircle = document.getElementById('progress-circle');
-  const progressText = document.getElementById('progress-text');
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('downloadBtn');
+  const iconContainer = document.getElementById('icon-container');
   const appIcon = document.getElementById('app-icon');
+  const canvas = document.getElementById('progress-circle');
+  const ctx = canvas.getContext('2d');
+  const progressText = document.getElementById('progress-text');
+
+  const versionId = {{ latest_version.id }};
+  const downloadUrl = "{% url 'download_file_view' latest_version.id %}";
+
+  let progress = 0;
+  {% if user_installed_version and user_installed_version.id == latest_version.id %}
+    let installed = true;
+  {% else %}
+    let installed = false;
+  {% endif %}
+  let downloading = false;
 
   function drawProgress(percent) {
-    const ctx = progressCircle.getContext('2d');
-    ctx.clearRect(0, 0, 100, 100);
-    ctx.lineWidth = 6;
-    ctx.strokeStyle = 'lime';
+    const size = canvas.width;
+    const center = size / 2;
+    const radius = center - 6;
+    const startAngle = -Math.PI / 2; // oben
+
+    ctx.clearRect(0, 0, size, size);
+
+    // Hintergrundkreis (transparent grau)
     ctx.beginPath();
-    ctx.arc(50, 50, 45, -Math.PI / 2, (percent / 100) * 2 * Math.PI - Math.PI / 2);
+    ctx.arc(center, center, radius, 0, 2 * Math.PI);
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 6;
     ctx.stroke();
-    progressText.textContent = `${percent}%`;
+
+    // Fortschrittsbogen (weiß, ca. 25% heller als volle Deckkraft)
+    ctx.beginPath();
+    const endAngle = startAngle + (2 * Math.PI * percent / 100);
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)'; // ca. 75% Deckkraft
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.arc(center, center, radius, startAngle, endAngle);
+    ctx.stroke();
+
+    progressText.textContent = Math.floor(percent) + '%';
+    if (percent === 100) {
+      progressText.textContent = 'Wird installiert...';
+    }
   }
 
-  async function simulateDownload() {
-    let percent = 0;
+  async function startDownload() {
+    if (installed) {
+      alert("App ist bereits installiert.");
+      return;
+    }
+    if (downloading) return;
+    downloading = true;
+    btn.disabled = true;
+    iconContainer.classList.add('icon-loading');
     progressText.classList.remove('d-none');
-    const interval = setInterval(() => {
-      if (percent >= 100) {
-        clearInterval(interval);
-        progressText.textContent = "Wird installiert…";
-        setTimeout(() => {
-          progressText.textContent = "Installiert";
-          downloadBtn.innerText = "Installiert";
-          downloadBtn.classList.remove('btn-success', 'btn-warning');
-          downloadBtn.classList.add('btn-secondary');
-        }, 1000);
-        return;
+    progress = 0;
+    drawProgress(0);
+    btn.textContent = 'Download startet...';
+
+    // Download-Count + VersionDownload erhöhen (Backend-API)
+    await fetch("{% url 'api_increment_download' %}", {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token }}'
+      },
+      body: JSON.stringify({ version_id: versionId }),
+    });
+
+    try {
+      const response = await fetch(downloadUrl);
+      if (!response.ok) throw new Error('Download fehlgeschlagen');
+
+      const contentLength = response.headers.get('content-length');
+      if (!contentLength) {
+        console.warn('Keine Content-Length erhalten');
       }
-      percent += 1;
-      drawProgress(percent);
-    }, 30);
-  }
+      const total = contentLength ? parseInt(contentLength, 10) : null;
 
-  if (downloadBtn) {
-    downloadBtn.addEventListener('click', async () => {
-      downloadBtn.disabled = true;
-      downloadBtn.innerText = 'Wird heruntergeladen…';
-      // App-Icon verkleinern
-      appIcon.style.transition = 'transform 0.3s ease';
-      appIcon.style.transform = 'scale(0.7)';
-      // Fortschrittskreis anzeigen
-      progressText.style.display = 'block';
-
-      const versionId = {{ latest_version.id }};
-      
-      // Schritt 1: Token holen
-      const res = await fetch("{% url 'get_download_token' %}", {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': '{{ csrf_token }}',
-        },
-        body: JSON.stringify({ version_id: versionId })
-      });
-      const data = await res.json();
-      const token = data.token;
-
-      // Schritt 2: Datei streamen
-      const response = await fetch(`/api/download/${token}/`);
-      const contentLength = response.headers.get("Content-Length");
-      const total = parseInt(contentLength || "0");
       const reader = response.body.getReader();
+      let receivedLength = 0;
+      const chunks = [];
 
-      let received = 0;
-      let chunks = [];
-
-      while (true) {
-        const { done, value } = await reader.read();
+      while(true) {
+        const {done, value} = await reader.read();
         if (done) break;
         chunks.push(value);
-        received += value.length;
-        const percent = Math.floor((received / total) * 100);
-        drawProgress(percent);
-        progressText.innerText = percent + '%';
+        receivedLength += value.length;
+
+        if (total) {
+          progress = (receivedLength / total) * 100;
+          drawProgress(progress);
+        }
       }
 
-      drawProgress(100);
-      progressText.innerText = '100%';
-      appIcon.style.transform = 'scale(0.9)';
-      downloadBtn.innerText = 'Wird installiert…';
+      // Blob aus den Chunks erstellen
+      const blob = new Blob(chunks);
+      const filename = response.headers.get('Content-Disposition')?.match(/filename="?([^"]+)"?/)?.[1] || 'app_download';
 
-      // Schritt 3: Blob erzeugen und APK öffnen
-      const apkBlob = new Blob(chunks, { type: 'application/vnd.android.package-archive' });
-      const apkUrl = URL.createObjectURL(apkBlob);
-
+      // Datei-Download auslösen
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = apkUrl;
-      a.download = '{{ app.name|slugify }}.apk';
+      a.href = url;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
+      a.remove();
+      window.URL.revokeObjectURL(url);
 
-      // Schritt 4: Server benachrichtigen und Text aktualisieren
-      try {
-        await fetch("{% url 'download_complete' %}", {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token }}',
-          },
-          body: JSON.stringify({ version_id: versionId })
-        });
-        downloadBtn.innerText = 'Installiert';
-      } catch (e) {
-        console.error("Installationsmeldung fehlgeschlagen", e);
-        downloadBtn.innerText = 'Fehler';
-      }
-    });
+      // Fortschritt auf 100% setzen & Installieren starten
+      drawProgress(100);
+      btn.textContent = 'Wird installiert...';
+
+      // Installation ist hier nur visuell, da JS die Datei nicht wirklich "installieren" kann
+      // Du kannst den User anweisen, die Datei zu öffnen
+      // Nach einiger Zeit "Installiert" anzeigen
+      setTimeout(() => {
+        progressText.textContent = 'Installiert';
+        btn.textContent = 'Installiert';
+        btn.disabled = true;
+        iconContainer.classList.remove('icon-loading');
+        installed = true;
+      }, 3000);
+
+    } catch (error) {
+      alert('Download fehlgeschlagen: ' + error.message);
+      btn.textContent = 'Download';
+      btn.disabled = false;
+      iconContainer.classList.remove('icon-loading');
+      progressText.classList.add('d-none');
+      progressText.textContent = '0%';
+      downloading = false;
+    }
+  }
+
+  if (btn) {
+    btn.addEventListener('click', startDownload);
   }
 });
+
 </script>
+
 
 <script>
   document.addEventListener('DOMContentLoaded', function () {

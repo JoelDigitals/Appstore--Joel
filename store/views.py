@@ -129,7 +129,7 @@ def login_view(request):
 
 def logout_view(request):
     logout(request)
-    return redirect('login')
+    return redirect('home')
     
 @login_required
 def create_app_view(request):
@@ -519,13 +519,12 @@ def upload_version(request, app_id):
 def app_detail_view(request, app_id):
     app = get_object_or_404(App, id=app_id, published=True)
     
-    latest_version = Version.objects.filter(
-        app=app,
+    latest_version = app.versions.filter(
         approved=True,
-        uploaded_at__lte=timezone.now()
+        new_version=True
     ).order_by('-uploaded_at').first()
 
-    print("Latest version:", latest_version.version_number, latest_version.uploaded_at)
+
 
     suggestions = App.objects.filter(
         platform=app.platform,
@@ -551,40 +550,13 @@ def app_detail_view(request, app_id):
     })
 
 #Download NEW
-@csrf_exempt
 @login_required
-def get_temporary_download_link(request):
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Method not allowed'}, status=405)
-
-    data = json.loads(request.body)
-    version_id = data.get('version_id')
+def download_file_view(request, version_id):
     version = get_object_or_404(Version, id=version_id, approved=True)
     app = version.app
-
-    token = get_random_string(32)
-    cache.set(f"dl_token_{token}", version_id, timeout=60)  # gültig 60 Sekunden
-
-    return JsonResponse({'token': token})
-
-@login_required
-def download_file_view(request, token):
-    version_id = cache.get(f"dl_token_{token}")
-    if not version_id:
-        return HttpResponseForbidden("Ungültiger oder abgelaufener Token.")
-
-    version = get_object_or_404(Version, id=version_id, approved=True)
-    app = version.app
-
-    # Alte Version (falls vorhanden) löschen
-    last_download = VersionDownload.objects.filter(user=request.user, version__app=app).order_by('-downloaded_at').first()
-    if last_download and last_download.version != version:
-        old_file = last_download.version.file
-        if old_file and os.path.exists(old_file.path):
-            os.remove(old_file.path)  # 🧹 Alte Datei löschen
 
     # Tracking
-    VersionDownload.objects.get_or_create(user=request.user, version=version)
+    VersionDownload.objects.create(user=request.user, version=version)
     app.download_count = F('download_count') + 1
     app.save(update_fields=["download_count"])
 
@@ -593,30 +565,6 @@ def download_file_view(request, token):
         return HttpResponseNotFound("Datei nicht gefunden.")
 
     return FileResponse(open(file_path, 'rb'), as_attachment=True, filename=os.path.basename(file_path))
-
-
-@csrf_exempt
-@login_required
-def download_start_api(request):
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Method not allowed'}, status=405)
-
-    data = json.loads(request.body)
-    version_id = data.get('version_id')
-    version = get_object_or_404(Version, id=version_id, approved=True)
-    app = version.app
-
-    # Zähler + Tracking
-    App.objects.filter(id=app.id).update(download_count=F('download_count') + 1)
-    VersionDownload.objects.get_or_create(user=request.user, version=version)
-
-    # Für Streaming-Download
-    file_path = version.file.path
-    total = os.path.getsize(file_path)
-    response = FileResponse(open(file_path, 'rb'), content_type='application/octet-stream')
-    response['Content-Length'] = total
-    response['X-Version-Id'] = str(version_id)
-    return response
 
 @csrf_exempt
 @login_required
@@ -632,6 +580,22 @@ def download_complete(request):
                 print(f"Fehler beim Löschen der Datei: {e}")
         return JsonResponse({'status': 'ok'})
     return JsonResponse({'status': 'error'}, status=400)
+
+@csrf_exempt
+@login_required
+def api_increment_download(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        version_id = data.get('version_id')
+        version = get_object_or_404(Version, id=version_id, approved=True)
+        app = version.app
+        VersionDownload.objects.create(user=request.user, version=version)
+        app.download_count = F('download_count') + 1
+        app.save(update_fields=['download_count'])
+        return JsonResponse({'status': 'ok'})
+    return JsonResponse({'status': 'error'}, status=400)
+
+
 
 
 
@@ -748,14 +712,14 @@ def save_push_subscription(request):
 @login_required
 def my_installed_apps(request):
     # Alle Apps, die der Benutzer installiert hat
-    installed_apps = VersionDownload.objects.filter(user=request.user).select_related('app', 'installed_version')
+    installed_apps = VersionDownload.objects.filter(user=request.user).select_related('version__app')
 
-    return render(request, 'apps/my_installed_apps.html', {
+    return render(request, 'store/my_installed_apps.html', {
         'installed_apps': installed_apps,
     })
 
 def jds_appstore_apps(request):
-    apps = App.objects.filter(name="JDS Appstore")
+    apps = App.objects.filter(name__icontains="JDS Appstore")
     return render(request, "store/jds_apps.html", {"apps": apps})
 
 @login_required

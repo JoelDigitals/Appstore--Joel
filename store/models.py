@@ -139,6 +139,7 @@ class Version(models.Model):
     checking_progress = models.PositiveSmallIntegerField(default=0)
     checking_log = models.TextField(blank=True)  # Protokoll für Prüfungsergebnisse
     approved = models.BooleanField(default=False)  # Ergebnis der Prüfung
+    new_version = models.BooleanField(default=False)  # Markierung für neue Version
 
     def __str__(self):
         return f"{self.app.name} v{self.version_number}"

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Mein Profil{% endblock %}
+
+{% block content %}
+<h1>Mein Profil</h1>
+
+<div class="profile">
+    {% if profile.avatar %}
+        <img src="{{ profile.avatar.url }}" alt="Avatar" style="max-width:150px;"/>
+    {% else %}
+        <p>Kein Avatar hochgeladen.</p>
+    {% endif %}
+
+    <p><strong>Bio:</strong> {{ profile.bio|linebreaks }}</p>
+    <p><strong>Geburtsdatum:</strong> {{ profile.birth_date }}</p>
+    <p><strong>Website:</strong> {{ profile.website }}</p>
+    <p><strong>Standort:</strong> {{ profile.location }}</p>
+    <p><strong>Social Links:</strong> {{ profile.social_links }}</p>
+    <p><strong>E-Mail:</strong> {{ profile.email }}</p>
+    <p><strong>Telefonnummer:</strong> {{ profile.phone_number }}</p>
+</div>
+
+<p>
+    <a href="{% url 'edit_user_profile' %}" class="btn btn-primary">Profil bearbeiten</a>
+    <a href="{% url 'delete_user_profile' %}" class="btn btn-danger">Profil löschen</a>
+</p>
+{% endblock %}

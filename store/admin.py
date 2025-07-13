@@ -38,8 +38,8 @@ class PushSubscriptionAdmin(admin.ModelAdmin):
 
 @admin.register(Version)
 class VersionAdmin(admin.ModelAdmin):
-    list_display = ("app", "version_number", "uploaded_at", "checking_status", "approved")
-    list_filter = ("checking_status", "approved")
+    list_display = ("app", "version_number", "uploaded_at", "checking_status", "approved", "new_version")
+    list_filter = ("checking_status", "approved", "new_version")
     search_fields = ("app__name", "version_number")
 
     def get_readonly_fields(self, request, obj=None):

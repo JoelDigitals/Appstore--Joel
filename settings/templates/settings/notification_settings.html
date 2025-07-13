@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Benachrichtigungseinstellungen{% endblock %}
+
+{% block content %}
+<h1>Benachrichtigungseinstellungen</h1>
+
+<form method="post">
+    {% csrf_token %}
+    <label>
+        <input type="checkbox" name="email_notifications" {% if settings.email_notifications %}checked{% endif %}>
+        E-Mail-Benachrichtigungen erhalten
+    </label><br>
+
+    <label>
+        <input type="checkbox" name="push_notifications" {% if settings.push_notifications %}checked{% endif %}>
+        Push-Benachrichtigungen erhalten
+    </label><br>
+
+    <label>
+        <input type="checkbox" name="daily_digest" {% if settings.daily_digest %}checked{% endif %}>
+        Tägliche Zusammenfassung erhalten
+    </label><br><br>
+
+    <button type="submit" class="btn btn-success">Speichern</button>
+    <a href="{% url 'user_settings' %}" class="btn btn-secondary">Zurück</a>
+</form>
+{% endblock %}

@@ -1,19 +1,64 @@
 {% extends "base.html" %}
-{% block content %}
-<div class="container">
-    <h1>JDS Appstore – Gefundene Apps</h1>
+{% load static %}
+{% include "store/platform_image.html" with platform=version.platform %}
 
-    {% if apps %}
-        <ul class="app-list">
-            {% for app in apps %}
-                <li>
-                    <strong>{{ app.name }}</strong> – 
-                    <a href="{% url 'app_detail' app.id %}" target="_blank">Ansehen</a>
-                </li>
-            {% endfor %}
-        </ul>
-    {% else %}
-        <p>Es wurden keine Apps mit dem Namen <strong>JDS Appstore</strong> gefunden.</p>
-    {% endif %}
-</div>
+
+{% block title %}Alle Apps - JDS Appstore{% endblock %}
+
+{% block content %}
+<h1 class="mb-4 text-white">Alle Apps</h1>
+
+{% if query %}
+  <p class="text-white">Suchergebnisse für "<strong>{{ query }}</strong>":</p>
+{% endif %}
+
+<style>
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;  
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: normal;
+  }
+</style>
+
+
+{% if apps %}
+  <div class="row">
+    {% for app in apps %}
+      <div class="col-12 col-sm-6 col-md-4 mb-3">
+        <a href="{% url 'app_detail' app.pk %}" class="text-decoration-none text-white">
+          <div class="card bg-dark text-white h-100">
+            {% with version=app.versions.first %}
+              {% if version %}
+                {% if app.platform == "windows" %}
+                  <img src="{% static 'images/platforms/windows.png' %}" class="card-img-top img-fluid" alt="Windows" />
+                {% elif app.platform == "linux" %}
+                  <img src="{% static 'images/platforms/linux.png' %}" class="card-img-top img-fluid" alt="Linux" />
+                {% elif app.platform == "android" %}
+                  <img src="{% static 'images/platforms/android.png' %}" class="card-img-top img-fluid" alt="Android" />
+                {% elif app.platform == "ios" %}
+                  <img src="{% static 'images/platforms/ios.png' %}" class="card-img-top img-fluid" alt="iOS" />
+                {% elif app.platform == "mac" %}
+                  <img src="{% static 'images/platforms/mac.png' %}" class="card-img-top img-fluid" alt="macOS" />
+                {% else %}
+                  <div class="bg-secondary text-center text-white py-4">Plattform: {{ app.platform }}</div>
+                {% endif %}
+              {% endif %}
+            {% endwith %}
+            <div class="card-body">
+              <h5 class="card-title">{{ app.name }}</h5>
+              <p><small>Plattform: {{ app.platform }}</small></p>
+              <p><small>Autor: {{ app.developer }}</small></p>
+              <p><small>{{ app.download_count }} Downloads</small></p>
+            </div>
+          </div>
+        </a>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="text-white mt-4">Keine Apps gefunden.</p>
+{% endif %}
 {% endblock %}

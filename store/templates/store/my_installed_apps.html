@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container my-4">
+  <h2 class="mb-4">Meine installierten Apps</h2>
+
+  <ul class="nav nav-tabs mb-3" id="installedAppsTab" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="apps-tab" data-bs-toggle="tab" data-bs-target="#apps" type="button" role="tab">Meine Apps</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="updates-tab" data-bs-toggle="tab" data-bs-target="#updates" type="button" role="tab">Aktualisierungen</button>
+    </li>
+  </ul>
+
+  <div class="tab-content" id="installedAppsTabContent">
+    <!-- Meine Apps -->
+    <div class="tab-pane fade show active" id="apps" role="tabpanel" aria-labelledby="apps-tab">
+      {% if installed_apps %}
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+          {% for item in installed_apps %}
+            <div class="col">
+              <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                  <h5 class="card-title">{{ item.version.app.name }}</h5>
+                    <p class="card-text">Installierte Version: {{ item.version.version_number }}</p>
+
+                    {% if item.version.app.latest_version and item.version.version_number != item.version.app.latest_version.version_number %}
+                      <p class="text-warning fw-bold">
+                        Update verfügbar: {{ item.version.app.latest_version.version_number }}
+                      </p>
+                      <a href="{% url 'app_update_view' item.version.app.id %}" class="btn btn-sm btn-primary">Jetzt aktualisieren</a>
+                    {% else %}
+                      <p class="text-success">Aktuell</p>
+                    {% endif %}
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p>Du hast noch keine Apps installiert.</p>
+      {% endif %}
+    </div>
+
+    <!-- Aktualisierungen -->
+    <div class="tab-pane fade" id="updates" role="tabpanel" aria-labelledby="updates-tab">
+      {% with updates=installed_apps|dictsort:"app.name" %}
+      {% with updates_available=updates|dictsortreversed:"installed_version.version_number" %}
+        {% with updated_list=updates_available|dictsort:"app.latest_version.version_number" %}
+          {% if updates_available %}
+            <ul class="list-group">
+              {% for item in installed_apps %}
+                {% if item.app.latest_version and item.installed_version.version_number != item.app.latest_version.version_number %}
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ item.app.name }} – installiert: {{ item.installed_version.version_number }}, neu: {{ item.app.latest_version.version_number }}
+                    <a href="{% url 'app_update_view' item.app.id %}" class="btn btn-sm btn-outline-primary">Aktualisieren</a>
+                  </li>
+                {% endif %}
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p>Alle deine Apps sind auf dem neuesten Stand!</p>
+          {% endif %}
+        {% endwith %}
+      {% endwith %}
+      {% endwith %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Profil bearbeiten{% endblock %}
+
+{% block content %}
+<h1>Profil bearbeiten</h1>
+
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <label for="avatar">Avatar hochladen:</label><br>
+    {% if profile.avatar %}
+        <img src="{{ profile.avatar.url }}" alt="Avatar" style="max-width:150px;"><br>
+    {% endif %}
+    <input type="file" name="avatar" id="avatar"><br><br>
+
+    <label for="bio">Bio:</label><br>
+    <textarea name="bio" id="bio" rows="4" cols="50">{{ profile.bio }}</textarea><br><br>
+
+    <label for="birth_date">Geburtsdatum:</label><br>
+    <input type="date" name="birth_date" id="birth_date" value="{{ profile.birth_date }}"><br><br>
+
+    <label for="website">Website:</label><br>
+    <input type="url" name="website" id="website" value="{{ profile.website }}"><br><br>
+
+    <label for="location">Standort:</label><br>
+    <input type="text" name="location" id="location" value="{{ profile.location }}"><br><br>
+
+    <label for="social_links">Social Links (kommagetrennt):</label><br>
+    <input type="text" name="social_links" id="social_links" value="{{ profile.social_links }}"><br><br>
+
+    <label for="email">E-Mail:</label><br>
+    <input type="email" name="email" id="email" value="{{ profile.email }}"><br><br>
+
+    <label for="phone_number">Telefonnummer:</label><br>
+    <input type="tel" name="phone_number" id="phone_number" value="{{ profile.phone_number }}"><br><br>
+
+    <button type="submit" class="btn btn-success">Speichern</button>
+    <a href="{% url 'user_profile' %}" class="btn btn-secondary">Abbrechen</a>
+</form>
+{% endblock %}

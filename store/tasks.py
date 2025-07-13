@@ -1,9 +1,9 @@
 import os
+import mimetypes
 import tarfile
 import zipfile
 import time
 import random
-import magic
 import pefile
 import pyclamd
 from celery import shared_task
@@ -90,6 +90,8 @@ def start_background_check(version_id):
     except Version.DoesNotExist:
         return
 
+
+
     version.checking_status = 'running'
     version.checking_log = ''
     version.save()
@@ -126,8 +128,8 @@ def start_background_check(version_id):
     try:
         log.append(f"Starte Prüfung für Datei: {file_path}")
 
-        mime = magic.from_file(file_path, mime=True)
-        log.append(f"Ermittelter MIME-Type: {mime}")
+        mime_type, encoding = mimetypes.guess_type(file_path)
+        log.append(f"Ermittelter MIME-Typ (per mimetypes): {mime_type or 'unbekannt'}")
 
         ext = os.path.splitext(file_path)[1].lower()
         log.append(f"Dateiendung: {ext}")
@@ -246,6 +248,8 @@ def start_background_check(version_id):
 
         time.sleep(random.randint(15, 20) * 60)
 
+        version.new_version = True  # Markiere die Version als neu
+        version.save()
         version.app.published = True
         version.app.save()
 
@@ -297,6 +301,11 @@ def start_background_check_version(version_id):
         version = Version.objects.get(id=version_id)
     except Version.DoesNotExist:
         return
+    
+    old_version = version.app.versions.filter(
+        approved=True,
+        new_version=True
+    ).order_by('-uploaded_at').first()  
 
     version.checking_status = 'running'
     version.checking_log = ''
@@ -334,8 +343,8 @@ def start_background_check_version(version_id):
     try:
         log.append(f"Starte Prüfung für Datei: {file_path}")
 
-        mime = magic.from_file(file_path, mime=True)
-        log.append(f"Ermittelter MIME-Type: {mime}")
+        mime_type, encoding = mimetypes.guess_type(file_path)
+        log.append(f"Ermittelter MIME-Typ (per mimetypes): {mime_type or 'unbekannt'}")
 
         ext = os.path.splitext(file_path)[1].lower()
         log.append(f"Dateiendung: {ext}")
@@ -454,8 +463,11 @@ def start_background_check_version(version_id):
 
         time.sleep(random.randint(15, 20) * 60)
 
-        version.app.published = True
-        version.app.save()
+        old_version.new_version = False  # Markiere alte Version als nicht neu
+        old_version.save()
+
+        version.new_version = True  # Markiere die neue Version als neu
+        version.save()
 
         send_check_email(dev,
             f"{version.app.name} ist jetzt veröffentlicht",

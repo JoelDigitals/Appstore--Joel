@@ -37,10 +37,10 @@ urlpatterns = [
     path('app/<int:app_id>/upload-version/', views.upload_version, name='upload_version'),
 
     #download new urls
-    path("api/get_download_token/", views.get_temporary_download_link, name="get_download_token"),
-    path("api/download/<str:token>/", views.download_file_view, name="download_file"),
-    path('api/download_start/', views.download_start_api, name='download_start_api'),
+    path("api/download/<int:version_id>/", views.download_file_view, name="download_file_view"),
     path('api/download_complete/', views.download_complete, name='download_complete'),
+    path('api/increment-download/', views.api_increment_download, name='api_increment_download'),
+
 
     #download old urls
     #path('download/start/<int:version_id>/', views.download_app_start, name='download_start'),
@@ -61,6 +61,6 @@ urlpatterns = [
 
     path("status/api/<int:version_id>/", views.version_status_api, name="version_status_api"),
 
-    
+    path('my-installed-apps/', views.my_installed_apps, name='my_installed_apps'),
 
 ]

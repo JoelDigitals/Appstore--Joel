@@ -1,0 +1,11 @@
+{% if platform == "windows" %}
+  <img src="{% static 'images/platforms/windows.png' %}" alt="Windows" style="width:48px; height:48px;" class="me-3 rounded">
+{% elif platform == "linux" %}
+  <img src="{% static 'images/platforms/linux.png' %}" alt="Linux" style="width:48px; height:48px;" class="me-3 rounded">
+{% elif platform == "android" %}
+  <img src="{% static 'images/platforms/android.png' %}" alt="Android" style="width:48px; height:48px;" class="me-3 rounded">
+{% elif platform == "ios" %}
+  <img src="{% static 'images/platforms/ios.png' %}" alt="iOS" style="width:48px; height:48px;" class="me-3 rounded">
+{% elif platform == "mac" %}
+  <img src="{% static 'images/platforms/mac.png' %}" alt="macOS" style="width:48px; height:48px;" class="me-3 rounded">
+{% endif %}

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Benutzereinstellungen{% endblock %}
+
+{% block content %}
+<h1>Benutzereinstellungen</h1>
+
+<ul>
+    <li><a href="{% url 'notification_settings' %}">Benachrichtigungseinstellungen</a></li>
+    <li><a href="{% url 'change_password' %}">Passwort ändern</a></li>
+    <li><a href="{% url 'edit_user_profile' %}">Profil bearbeiten</a></li>
+</ul>
+{% endblock %}

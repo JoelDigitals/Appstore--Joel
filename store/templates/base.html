@@ -200,8 +200,7 @@
       </form>
       <ul class="navbar-nav mb-2 mb-lg-0">
         {% if user.is_authenticated %}
-          <li class="nav-item"><a href="{% url 'developer_dashboard' %}" class="nav-link">Dashboard</a></li>
-          <li class="nav-item"><a href="{% url 'logout' %}" class="nav-link">Logout</a></li>
+          <!-- Benachrichtigungen -->
           <li class="nav-item dropdown me-3">
             <a class="nav-link dropdown-toggle position-relative" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" id="notificationsDropdown">
               <i class="bi bi-bell" style="font-size: 1.2rem;"></i>
@@ -215,21 +214,60 @@
               {% if notifications %}
                 <a class="dropdown-item small" href="{% url 'mark_all_notifications_read' %}">
                   <strong>Alle gelesen</strong>
+                </a>
                 {% for notif in notifications %}
-                  <li><a class="dropdown-item small" href="{% url 'notification_detail' notif.id %}">
-                    {% if not notif.read and notif.user %}
-                      <span class="badge bg-primary me-2">Neu</span>
-                    {% endif %}
-                    {{ notif.message|truncatechars:60 }}<br>
-                    <small class="text-muted">{{ notif.created_at|date:"d.m.Y H:i" }}</small>
-                  </a></li>
-                  
+                  <li>
+                    <a class="dropdown-item small" href="{% url 'notification_detail' notif.id %}">
+                      {% if not notif.read and notif.user %}
+                        <span class="badge bg-primary me-2">Neu</span>
+                      {% endif %}
+                      {{ notif.message|truncatechars:60 }}<br>
+                      <small class="text-muted">{{ notif.created_at|date:"d.m.Y H:i" }}</small>
+                    </a>
+                  </li>
                 {% endfor %}
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item text-center" href="{% url 'notifications_all' %}">Alle anzeigen</a></li>
               {% else %}
                 <li><span class="dropdown-item small text-muted">Keine neuen Benachrichtigungen</span></li>
               {% endif %}
+            </ul>
+          </li>
+        
+          <!-- Benutzer-Avatar mit Dropdown -->
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              {% if user.profile.avatar %}
+                <img src="{{ user.profile.avatar.url }}" alt="Avatar" class="rounded-circle" style="width: 36px; height: 36px; object-fit: cover;">
+              {% else %}
+                <div class="rounded-circle bg-secondary text-white d-flex justify-content-center align-items-center" style="width: 36px; height: 36px; font-weight: bold;">
+                  {{ user.first_name|default:user.username|slice:":1"|upper }}
+                </div>
+              {% endif %}
+            </a>
+
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+              <li>
+                <a class="dropdown-item" href="{% url 'developer_dashboard' %}">
+                  <i class="bi bi-speedometer2 me-2"></i> Dashboard
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="{% url 'my_installed_apps' %}">
+                  <i class="bi bi-download me-2"></i> Meine Apps
+                </a>
+              <li>
+                <a class="dropdown-item" href="{% url 'user_settings' %}">
+                  <i class="bi bi-gear me-2"></i> Einstellungen
+                </a>
+              </li>
+
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item" href="{% url 'logout' %}">
+                  <i class="bi bi-box-arrow-right me-2"></i> Logout
+                </a>
+              </li>
             </ul>
           </li>
         {% else %}
@@ -293,7 +331,7 @@
   <a href="https://joel-digitals.onrender.com/terms" target="_blank" rel="noopener">AGB</a>
 
   <br>
-  <p>Version 1.0.0.0 BETA 0.0.8</p>
+  <p>Version 1.0.0.0 BETA 0.0.9</p>
   <br>    
 </footer>
 

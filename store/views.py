@@ -25,6 +25,7 @@ from .utils import send_push_notification_to_admins
 from django.core.cache import cache
 from django.conf import settings
 import mimetypes
+import threading
 
 app_celery = Celery()
 
@@ -173,16 +174,21 @@ def version_status_app_view(request, version_id):
 def version_status_view(request, version_id):
     version = get_object_or_404(Version, id=version_id)
 
-    # Starte die Prüfung nur, wenn sie noch nicht läuft oder nicht abgeschlossen ist
     if version.checking_status not in ['running', 'passed']:
-        try:
-            start_background_check_version(version.id)
-            messages.success(request, 'Die Prüfung läuft im Hintergrund.')
-        except KombuOpError:
-            messages.warning(request,
-                'Die Prüfung konnte nicht gestartet werden.')
+        def run_check():
+            try:
+                start_background_check_version(version.id)
+                send_push_notification_to_admins(
+                title="Neue Verions-Prüfung gestartet",
+                body=f"Die Version {version.version_number} von {version.app.name} wird geprüft.",
+                url=f"/store/version/{version.id}/"
+            )
+            except Exception as e:
+                print(f"Check failed: {e}")
 
-    # Rendern einer Status-Seite mit den Infos zur Version und Prüfung
+        threading.Thread(target=run_check).start()
+        messages.success(request, 'Die Prüfung wurde im Hintergrund gestartet.')
+
     return render(request, 'store/version_status.html', {'version': version})
 
 

@@ -139,6 +139,8 @@ def start_background_check(version_id):
         if size > 500 * 1024 * 1024:
             return fail("Datei ist größer als 500MB.")
 
+        version.checking_progress = 1  # Update den Fortschritt
+        version.save()
         time.sleep(random.randint(1, 3) * 60)
 
         if ext == '.exe':
@@ -210,6 +212,9 @@ def start_background_check(version_id):
         else:
             return fail(f"Unbekannter oder nicht erlaubter Dateityp: {ext}")
 
+        version.checking_progress = 2 # Update den Fortschritt
+        version.save()
+        # Wartezeit simulieren, um realistische Prüfungsdauer zu haben
         time.sleep(random.randint(1, 3) * 60)
 
         try:
@@ -226,8 +231,9 @@ def start_background_check(version_id):
         except Exception as e:
             log.append(f"Virenscan-Fehler: {e}")
 
+        version.checking_progress = 3  # Update den Fortschritt
+        version.save()
         time.sleep(random.randint(1, 3) * 60)
-        time.sleep(random.randint(1, 2) * 60)
 
         version.checking_status = 'passed'
         version.approved = True
@@ -246,6 +252,8 @@ def start_background_check(version_id):
             level='success_1'
         )
 
+        version.checking_progress = 4  # Update den Fortschritt
+        version.save()
         time.sleep(random.randint(15, 20) * 60)
 
         version.new_version = True  # Markiere die Version als neu
@@ -354,6 +362,8 @@ def start_background_check_version(version_id):
         if size > 500 * 1024 * 1024:
             return fail("Datei ist größer als 500MB.")
 
+        version.checking_progress = 1  # Update den Fortschritt
+        version.save()
         time.sleep(random.randint(1, 3) * 60)
 
         if ext == '.exe':
@@ -425,6 +435,8 @@ def start_background_check_version(version_id):
         else:
             return fail(f"Unbekannter oder nicht erlaubter Dateityp: {ext}")
 
+        version.checking_progress = 2  # Update den Fortschritt
+        version.save()
         time.sleep(random.randint(1, 3) * 60)
 
         try:
@@ -441,7 +453,8 @@ def start_background_check_version(version_id):
         except Exception as e:
             log.append(f"Virenscan-Fehler: {e}")
 
-        time.sleep(random.randint(1, 3) * 60)
+        version.checking_progress = 3  # Update den Fortschritt
+        version.save()
         time.sleep(random.randint(1, 2) * 60)
 
         version.checking_status = 'passed'
@@ -460,7 +473,8 @@ def start_background_check_version(version_id):
             version=version,
             level='success_1'
         )
-
+        version.checking_progress = 4  # Update den Fortschritt
+        version.save()
         time.sleep(random.randint(15, 20) * 60)
 
         old_version.new_version = False  # Markiere alte Version als nicht neu

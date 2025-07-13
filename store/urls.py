@@ -63,4 +63,6 @@ urlpatterns = [
 
     path('my-installed-apps/', views.my_installed_apps, name='my_installed_apps'),
 
+    path('media/', views.media_view, name='admin_media'),
+
 ]

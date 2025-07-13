@@ -4,7 +4,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
-from .models import App, Version, PushSubscription, Developer, VersionDownload, CATEGORY_CHOICES, Notification
+from .models import App, Version, PushSubscription, Developer, VersionDownload, Notification
 from .forms import AppWithVersionForm, VersionForm, DeveloperForm, AppEditForm
 from .tasks import start_background_check, start_background_check_version
 from django.http import FileResponse, JsonResponse, HttpResponse, FileResponse, HttpResponseNotFound, HttpResponseForbidden
@@ -22,8 +22,9 @@ from django.db.models import Count
 from datetime import timedelta
 from django.db.models import Q
 from .utils import send_push_notification_to_admins
-from django.utils.crypto import get_random_string
 from django.core.cache import cache
+from django.conf import settings
+import mimetypes
 
 app_celery = Celery()
 
@@ -711,12 +712,40 @@ def save_push_subscription(request):
 
 @login_required
 def my_installed_apps(request):
-    # Alle Apps, die der Benutzer installiert hat
-    installed_apps = VersionDownload.objects.filter(user=request.user).select_related('version__app')
+    latest_installs = VersionDownload.objects.filter(user=request.user)\
+        .select_related('version__app')\
+        .order_by('version__app', '-version__uploaded_at')
+
+    seen = set()
+    installed_latest = []
+
+    for item in latest_installs:
+        app_id = item.version.app.id
+        if app_id not in seen:
+            installed_latest.append(item)
+            seen.add(app_id)
+
+    updates = []
+    for item in installed_latest:
+        app = item.version.app
+        latest_version = app.versions.filter(
+            approved=True,
+            new_version=True
+        ).order_by('-uploaded_at').first()
+
+        if latest_version and latest_version.version_number != item.version.version_number:
+            updates.append({
+                'download': item,
+                'latest_version': latest_version,
+                'missing_versions': Version.objects.filter(app=app, uploaded_at__gt=item.version.uploaded_at).count(),
+                'release_notes': latest_version.release_notes
+            })
 
     return render(request, 'store/my_installed_apps.html', {
-        'installed_apps': installed_apps,
+        'installed_apps': installed_latest,
+        'updates': updates
     })
+
 
 def jds_appstore_apps(request):
     apps = App.objects.filter(name__icontains="JDS Appstore")
@@ -726,3 +755,49 @@ def jds_appstore_apps(request):
 def developer_list(request):
     developers = Developer.objects.all().order_by('name')
     return render(request, 'store/developer_list.html', {'developers': developers})
+
+
+
+
+@login_required
+@staff_member_required
+def media_view(request):
+    rel_path = request.GET.get("path", "")  # z. B. "images/icons"
+    abs_path = os.path.join(settings.MEDIA_ROOT, rel_path)
+
+    if not abs_path.startswith(str(settings.MEDIA_ROOT)):
+        return render(request, "store/media_view.html", {"error": "Ungültiger Pfad"})
+
+    items = []
+    if os.path.exists(abs_path):
+        for entry in os.scandir(abs_path):
+            items.append({
+                "name": entry.name,
+                "is_dir": entry.is_dir(),
+                "path": os.path.join(rel_path, entry.name).replace("\\", "/"),
+            })
+
+    breadcrumbs = rel_path.split("/") if rel_path else []
+    return render(request, "store/media_view.html", {
+        "items": items,
+        "rel_path": rel_path,
+        "breadcrumbs": breadcrumbs,
+    })
+
+@login_required
+def media_file_view(request, path):
+    abs_path = os.path.join(settings.MEDIA_ROOT, path)
+
+    if not abs_path.startswith(str(settings.MEDIA_ROOT)):
+        return HttpResponseForbidden("Ungültiger Pfad")
+
+    if not os.path.exists(abs_path):
+        return HttpResponseNotFound("Datei nicht gefunden")
+
+    content_type, _ = mimetypes.guess_type(abs_path)
+    if content_type is None:
+        content_type = 'application/octet-stream'
+
+    response = FileResponse(open(abs_path, 'rb'), content_type=content_type)
+    response['Content-Disposition'] = f'inline; filename="{os.path.basename(abs_path)}"'
+    return response

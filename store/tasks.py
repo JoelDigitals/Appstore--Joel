@@ -475,7 +475,6 @@ def start_background_check_version(version_id):
         )
         version.checking_progress = 4  # Update den Fortschritt
         version.save()
-        time.sleep(random.randint(15, 20) * 60)
 
         old_version.new_version = False  # Markiere alte Version als nicht neu
         old_version.save()

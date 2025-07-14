@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static filename_filters %}
 
 {% block title %}{{ app.name }} – Joel Appstore{% endblock %}
 
@@ -233,8 +234,27 @@
   .half-spin {
     animation: half-spin 2s linear infinite;
   }
+  /* Für den drehenden Lade-Kreis ohne Prozent */
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  .spinning {
+    animation: spin 1s linear infinite;
+  }
+  /* Icon-Vergrößerung */
+  .icon-loading #app-icon {
+    width: 50px; /* klein */
+    height: 50px;
+    opacity: 0.5;
+    transition: all 0.3s;
+  }
+  #app-icon {
+    width: 100px;
+    height: 100px;
+    transition: all 0.3s;
+  }
 </style>
-
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const btn = document.getElementById('downloadBtn');
@@ -259,29 +279,40 @@ document.addEventListener('DOMContentLoaded', () => {
     const size = canvas.width;
     const center = size / 2;
     const radius = center - 6;
-    const startAngle = -Math.PI / 2; // oben
+    const startAngle = -Math.PI / 2;
 
     ctx.clearRect(0, 0, size, size);
 
-    // Hintergrundkreis (transparent grau)
+    // Hintergrund
     ctx.beginPath();
     ctx.arc(center, center, radius, 0, 2 * Math.PI);
     ctx.strokeStyle = 'rgba(255,255,255,0.2)';
     ctx.lineWidth = 6;
     ctx.stroke();
 
-    // Fortschrittsbogen (weiß, ca. 25% heller als volle Deckkraft)
+    // Fortschrittskreis
     ctx.beginPath();
     const endAngle = startAngle + (2 * Math.PI * percent / 100);
-    ctx.strokeStyle = 'rgba(255,255,255,0.75)'; // ca. 75% Deckkraft
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
     ctx.lineWidth = 6;
     ctx.lineCap = 'round';
     ctx.arc(center, center, radius, startAngle, endAngle);
     ctx.stroke();
 
-    progressText.textContent = Math.floor(percent) + '%';
-    if (percent === 100) {
+    if (percent < 100) {
+      progressText.textContent = Math.floor(percent) + '%';
+    } else {
       progressText.textContent = 'Wird installiert...';
+    }
+  }
+
+  async function fakeLoading(duration = 4000) {
+    const interval = 50;
+    const steps = duration / interval;
+    for (let i = 0; i <= steps; i++) {
+      const percent = (i / steps) * 20; // max. 20% als fake
+      drawProgress(percent);
+      await new Promise(resolve => setTimeout(resolve, interval));
     }
   }
 
@@ -297,9 +328,11 @@ document.addEventListener('DOMContentLoaded', () => {
     progressText.classList.remove('d-none');
     progress = 0;
     drawProgress(0);
-    btn.textContent = 'Download startet...';
+    btn.textContent = 'Lädt...';
 
-    // Download-Count + VersionDownload erhöhen (Backend-API)
+    await fakeLoading(); // 🔁 4 Sekunden Ladeanimation
+
+    // Download-Count erhöhen
     await fetch("{% url 'api_increment_download' %}", {
       method: 'POST',
       headers: {
@@ -309,58 +342,52 @@ document.addEventListener('DOMContentLoaded', () => {
       body: JSON.stringify({ version_id: versionId }),
     });
 
+    btn.textContent = 'Wird heruntergeladen...';
+
     try {
       const response = await fetch(downloadUrl);
       if (!response.ok) throw new Error('Download fehlgeschlagen');
 
       const contentLength = response.headers.get('content-length');
-      if (!contentLength) {
-        console.warn('Keine Content-Length erhalten');
-      }
       const total = contentLength ? parseInt(contentLength, 10) : null;
 
       const reader = response.body.getReader();
       let receivedLength = 0;
       const chunks = [];
 
-      while(true) {
-        const {done, value} = await reader.read();
+      while (true) {
+        const { done, value } = await reader.read();
         if (done) break;
         chunks.push(value);
         receivedLength += value.length;
 
         if (total) {
-          progress = (receivedLength / total) * 100;
-          drawProgress(progress);
+          const percent = 20 + ((receivedLength / total) * 80); // ab 20%
+          drawProgress(percent);
         }
       }
 
-      // Blob aus den Chunks erstellen
+      // Datei aus Chunks bauen
       const blob = new Blob(chunks);
       const filename = response.headers.get('Content-Disposition')?.match(/filename="?([^"]+)"?/)?.[1] || 'app_download';
-
-      // Datei-Download auslösen
       const url = window.URL.createObjectURL(blob);
+
+      // Datei öffnen (nur möglich durch Klick)
       const a = document.createElement('a');
       a.href = url;
       a.download = filename;
-      document.body.appendChild(a);
       a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
 
-      // Fortschritt auf 100% setzen & Installieren starten
+      // Fortschritt = 100%
       drawProgress(100);
       btn.textContent = 'Wird installiert...';
 
-      // Installation ist hier nur visuell, da JS die Datei nicht wirklich "installieren" kann
-      // Du kannst den User anweisen, die Datei zu öffnen
-      // Nach einiger Zeit "Installiert" anzeigen
       setTimeout(() => {
         progressText.textContent = 'Installiert';
         btn.textContent = 'Installiert';
         btn.disabled = true;
         iconContainer.classList.remove('icon-loading');
+        window.URL.revokeObjectURL(url);
         installed = true;
       }, 3000);
 
@@ -379,10 +406,10 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.addEventListener('click', startDownload);
   }
 });
-
 </script>
 
 
+</script>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     const btn = document.getElementById('toggleDescBtn');

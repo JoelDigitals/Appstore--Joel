@@ -281,7 +281,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const radius = center - 6;
     const startAngle = -Math.PI / 2;
 
-    ctx.clearRect(0, size, size);
+    ctx.clearRect(0, 0, size, size);
+
 
     ctx.beginPath();
     ctx.arc(center, center, radius, 0, 2 * Math.PI);

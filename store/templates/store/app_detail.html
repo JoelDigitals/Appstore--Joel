@@ -260,21 +260,104 @@ document.addEventListener('DOMContentLoaded', () => {
   const btn = document.getElementById('downloadBtn');
   const iconContainer = document.getElementById('icon-container');
   const appIcon = document.getElementById('app-icon');
-  const canvas = document.getElementById('progress-circle');
+
+  // Canvas & Text für Fortschritt im Icon-Container erstellen, falls noch nicht vorhanden
+  let canvas = document.getElementById('progress-circle');
+  let progressText = document.getElementById('progress-text');
+
+  if (!canvas) {
+    canvas = document.createElement('canvas');
+    canvas.id = 'progress-circle';
+    canvas.width = iconContainer.clientWidth;
+    canvas.height = iconContainer.clientHeight;
+    canvas.style.position = 'absolute';
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    iconContainer.appendChild(canvas);
+  }
+
+  if (!progressText) {
+    progressText = document.createElement('div');
+    progressText.id = 'progress-text';
+    progressText.style.position = 'absolute';
+    progressText.style.top = '40%';
+    progressText.style.left = '0';
+    progressText.style.width = '100%';
+    progressText.style.textAlign = 'center';
+    progressText.style.fontWeight = 'bold';
+    progressText.style.color = 'white';
+    progressText.style.pointerEvents = 'none';
+    progressText.style.userSelect = 'none';
+    iconContainer.appendChild(progressText);
+  }
+
   const ctx = canvas.getContext('2d');
-  const progressText = document.getElementById('progress-text');
 
   const versionId = {{ latest_version.id }};
   const downloadUrl = "{% url 'download_file_view' latest_version.id %}";
 
-  let progress = 0;
-  {% if user_installed_version and user_installed_version.id == latest_version.id %}
-    let installed = true;
-  {% else %}
-    let installed = false;
-  {% endif %}
+  let installed = {% if user_installed_version and user_installed_version.id == latest_version.id %}true{% else %}false{% endif %};
   let downloading = false;
 
+  // --- LocalStorage-Funktionen (Downloadliste) ---
+
+  const DOWNLOAD_STORAGE_KEY = 'jds_downloads';
+  const DOWNLOAD_STORAGE_TTL = 20 * 60 * 1000; // 20 Minuten in ms
+
+  function loadDownloads() {
+    let downloads = JSON.parse(localStorage.getItem(DOWNLOAD_STORAGE_KEY) || '[]');
+    const now = Date.now();
+    downloads = downloads.filter(item => (now - item.time) < DOWNLOAD_STORAGE_TTL);
+    localStorage.setItem(DOWNLOAD_STORAGE_KEY, JSON.stringify(downloads));
+    return downloads;
+  }
+
+  function addDownload(name, url) {
+    let downloads = loadDownloads();
+
+    // Doppelte Einträge vermeiden (gleicher Name + URL)
+    const exists = downloads.some(dl => dl.name === name && dl.url === url);
+    if (!exists) {
+      downloads.push({name, url, time: Date.now()});
+      try {
+        localStorage.setItem(DOWNLOAD_STORAGE_KEY, JSON.stringify(downloads));
+      } catch(e) {
+        console.warn('localStorage voll oder gesperrt, kann Download nicht speichern.', e);
+        // Optional: älteste Downloads löschen, um Platz zu schaffen
+        //downloads.shift();
+        //localStorage.setItem(DOWNLOAD_STORAGE_KEY, JSON.stringify(downloads));
+      }
+    }
+
+    renderDownloads();
+  }
+
+  function renderDownloads() {
+    const container = document.getElementById('download-list');
+    const downloads = loadDownloads();
+    container.innerHTML = '';
+
+    if (downloads.length === 0) {
+      container.innerHTML = '<li style="color:#888;">Keine Downloads</li>';
+      document.getElementById('download-badge').style.display = 'none';
+    } else {
+      downloads.forEach(dl => {
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.textContent = dl.name;
+        a.href = dl.url;
+        a.target = '_blank'; // Öffnet Download in neuem Tab / Download-Dialog
+        li.appendChild(a);
+        container.appendChild(li);
+      });
+      // Badge anzeigen mit Anzahl
+      const badge = document.getElementById('download-badge');
+      badge.style.display = 'inline-block';
+      badge.textContent = downloads.length;
+    }
+  }
+
+  // --- Fortschrittskreis malen ---
   function drawProgress(percent) {
     const size = canvas.width;
     const center = size / 2;
@@ -283,13 +366,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     ctx.clearRect(0, 0, size, size);
 
-
+    // Hintergrundkreis (leicht transparent)
     ctx.beginPath();
     ctx.arc(center, center, radius, 0, 2 * Math.PI);
     ctx.strokeStyle = 'rgba(255,255,255,0.2)';
     ctx.lineWidth = 6;
     ctx.stroke();
 
+    // Fortschrittsbalken
     ctx.beginPath();
     const endAngle = startAngle + (2 * Math.PI * percent / 100);
     ctx.strokeStyle = 'rgba(255,255,255,0.75)';
@@ -301,6 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
     progressText.textContent = percent < 100 ? Math.floor(percent) + '%' : 'Wird installiert...';
   }
 
+  // Fake-Laden (20% Fortschritt animieren)
   async function fakeLoading(duration = 4000) {
     const interval = 50;
     const steps = duration / interval;
@@ -322,12 +407,12 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.disabled = true;
     iconContainer.classList.add('icon-loading');
     progressText.classList.remove('d-none');
-    progress = 0;
     drawProgress(0);
     btn.textContent = 'Lädt...';
 
     await fakeLoading();
 
+    // Download-Zähler inkrementieren (Server)
     await fetch("{% url 'api_increment_download' %}", {
       method: 'POST',
       headers: {
@@ -362,14 +447,16 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const blob = new Blob(chunks);
-      const filename = response.headers.get('Content-Disposition')?.match(/filename="?([^"]+)"?/)?.[1] || 'app_download.apk';
+      const disposition = response.headers.get('Content-Disposition');
+      const filename = disposition?.match(/filename="?([^"]+)"?/)?.[1] || 'app_download.apk';
       const blobUrl = window.URL.createObjectURL(blob);
 
-      // Für WebView: versuche die Datei direkt zu öffnen
+      // Speichere Download in localStorage (Name + URL)
+      addDownload(filename, blobUrl);
+
       if (window.navigator && window.navigator.msSaveOrOpenBlob) {
         window.navigator.msSaveOrOpenBlob(blob, filename);
       } else if (window.AndroidInterface && window.AndroidInterface.downloadAndInstall) {
-        // Median.co native WebView mit Interface
         const base64Reader = new FileReader();
         base64Reader.onloadend = () => {
           const base64Data = base64Reader.result.split(',')[1];
@@ -377,7 +464,6 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         base64Reader.readAsDataURL(blob);
       } else {
-        // Fallback für reguläre Browser
         const a = document.createElement('a');
         a.href = blobUrl;
         a.download = filename;
@@ -412,6 +498,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btn) {
     btn.addEventListener('click', startDownload);
   }
+
+  // Direkt beim Laden schon die Downloadliste rendern
+  renderDownloads();
 });
 </script>
 

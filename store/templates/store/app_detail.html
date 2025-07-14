@@ -281,16 +281,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const radius = center - 6;
     const startAngle = -Math.PI / 2;
 
-    ctx.clearRect(0, 0, size, size);
+    ctx.clearRect(0, size, size);
 
-    // Hintergrund
     ctx.beginPath();
     ctx.arc(center, center, radius, 0, 2 * Math.PI);
     ctx.strokeStyle = 'rgba(255,255,255,0.2)';
     ctx.lineWidth = 6;
     ctx.stroke();
 
-    // Fortschrittskreis
     ctx.beginPath();
     const endAngle = startAngle + (2 * Math.PI * percent / 100);
     ctx.strokeStyle = 'rgba(255,255,255,0.75)';
@@ -299,18 +297,14 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.arc(center, center, radius, startAngle, endAngle);
     ctx.stroke();
 
-    if (percent < 100) {
-      progressText.textContent = Math.floor(percent) + '%';
-    } else {
-      progressText.textContent = 'Wird installiert...';
-    }
+    progressText.textContent = percent < 100 ? Math.floor(percent) + '%' : 'Wird installiert...';
   }
 
   async function fakeLoading(duration = 4000) {
     const interval = 50;
     const steps = duration / interval;
     for (let i = 0; i <= steps; i++) {
-      const percent = (i / steps) * 20; // max. 20% als fake
+      const percent = (i / steps) * 20;
       drawProgress(percent);
       await new Promise(resolve => setTimeout(resolve, interval));
     }
@@ -322,6 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     if (downloading) return;
+
     downloading = true;
     btn.disabled = true;
     iconContainer.classList.add('icon-loading');
@@ -330,9 +325,8 @@ document.addEventListener('DOMContentLoaded', () => {
     drawProgress(0);
     btn.textContent = 'Lädt...';
 
-    await fakeLoading(); // 🔁 4 Sekunden Ladeanimation
+    await fakeLoading();
 
-    // Download-Count erhöhen
     await fetch("{% url 'api_increment_download' %}", {
       method: 'POST',
       headers: {
@@ -360,25 +354,37 @@ document.addEventListener('DOMContentLoaded', () => {
         if (done) break;
         chunks.push(value);
         receivedLength += value.length;
-
         if (total) {
-          const percent = 20 + ((receivedLength / total) * 80); // ab 20%
+          const percent = 20 + ((receivedLength / total) * 80);
           drawProgress(percent);
         }
       }
 
-      // Datei aus Chunks bauen
       const blob = new Blob(chunks);
-      const filename = response.headers.get('Content-Disposition')?.match(/filename="?([^"]+)"?/)?.[1] || 'app_download';
-      const url = window.URL.createObjectURL(blob);
+      const filename = response.headers.get('Content-Disposition')?.match(/filename="?([^"]+)"?/)?.[1] || 'app_download.apk';
+      const blobUrl = window.URL.createObjectURL(blob);
 
-      // Datei öffnen (nur möglich durch Klick)
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.click();
+      // Für WebView: versuche die Datei direkt zu öffnen
+      if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+        window.navigator.msSaveOrOpenBlob(blob, filename);
+      } else if (window.AndroidInterface && window.AndroidInterface.downloadAndInstall) {
+        // Median.co native WebView mit Interface
+        const base64Reader = new FileReader();
+        base64Reader.onloadend = () => {
+          const base64Data = base64Reader.result.split(',')[1];
+          window.AndroidInterface.downloadAndInstall(base64Data, filename);
+        };
+        base64Reader.readAsDataURL(blob);
+      } else {
+        // Fallback für reguläre Browser
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
 
-      // Fortschritt = 100%
       drawProgress(100);
       btn.textContent = 'Wird installiert...';
 
@@ -387,7 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.textContent = 'Installiert';
         btn.disabled = true;
         iconContainer.classList.remove('icon-loading');
-        window.URL.revokeObjectURL(url);
+        window.URL.revokeObjectURL(blobUrl);
         installed = true;
       }, 3000);
 

@@ -291,9 +291,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const ctx = canvas.getContext('2d');
-
   const versionId = {{ latest_version.id }};
   const downloadUrl = "{% url 'download_file_view' latest_version.id %}";
+  const fileName = '{{ app.name|slugify }}-v{{ latest_version.version }}.apk';
 
   let installed = {% if user_installed_version and user_installed_version.id == latest_version.id %}true{% else %}false{% endif %};
   let downloading = false;
@@ -428,31 +428,40 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      // 🔽 ALTERNATIVE: Direkt wie Chrome öffnen (Dein Wunsch!)
       const apkBlob = new Blob(chunks, { type: 'application/vnd.android.package-archive' });
       const apkUrl = URL.createObjectURL(apkBlob);
 
+      // Versuch die Datei "auszuführen"
       const a = document.createElement('a');
       a.href = apkUrl;
-      a.download = '{{ app.name|slugify }}.apk';
+      a.download = fileName;
       document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
 
-      // Optional auch für lokale Speicherung nutzen:
-      addDownload('{{ app.name|slugify }}.apk', apkUrl);
+      try {
+        a.click();  // Chrome öffnet ggf. direkt
+        // Speichern für späteren Zugriff
+        addDownload(fileName, apkUrl);
+        drawProgress(100);
+        btn.textContent = 'Wird installiert...';
 
-      drawProgress(100);
-      btn.textContent = 'Wird installiert...';
-
-      setTimeout(() => {
-        progressText.textContent = 'Installiert';
-        btn.textContent = 'Installiert';
-        btn.disabled = true;
+        setTimeout(() => {
+          progressText.textContent = 'Installiert';
+          btn.textContent = 'Installiert';
+          btn.disabled = true;
+          iconContainer.classList.remove('icon-loading');
+          URL.revokeObjectURL(apkUrl);
+          installed = true;
+        }, 3000);
+      } catch (e) {
+        alert("Die Datei konnte nicht automatisch geöffnet werden. Sie wurde im Download-Ordner gespeichert und muss manuell installiert werden.");
+        addDownload(fileName, apkUrl);
+        drawProgress(100);
+        btn.textContent = 'Gespeichert';
         iconContainer.classList.remove('icon-loading');
         URL.revokeObjectURL(apkUrl);
-        installed = true;
-      }, 3000);
+      } finally {
+        document.body.removeChild(a);
+      }
 
     } catch (error) {
       alert('Download fehlgeschlagen: ' + error.message);
@@ -472,6 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderDownloads();
 });
 </script>
+
 
 </script>
 <script>

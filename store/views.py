@@ -4,7 +4,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
-from .models import App, Version, PushSubscription, Developer, VersionDownload, Notification
+from .models import App, Version, PushSubscription, Developer, VersionDownload, Notification, AppInfo, AppUpdate, RoadmapItem
 from .forms import AppWithVersionForm, VersionForm, DeveloperForm, AppEditForm
 from .tasks import start_background_check, start_background_check_version
 from django.http import FileResponse, JsonResponse, HttpResponse, FileResponse, HttpResponseNotFound, HttpResponseForbidden
@@ -807,3 +807,11 @@ def media_file_view(request, path):
     response = FileResponse(open(abs_path, 'rb'), content_type=content_type)
     response['Content-Disposition'] = f'inline; filename="{os.path.basename(abs_path)}"'
     return response
+
+def info_page(request):
+    updates = AppUpdate.objects.order_by('-date')[:10]
+    roadmap = RoadmapItem.objects.order_by('date')
+    return render(request, 'store/infoseite.html', {
+        'updates': updates,
+        'roadmap': roadmap,
+    })

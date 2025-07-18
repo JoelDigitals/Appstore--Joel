@@ -189,11 +189,28 @@
       font-size: 1.4rem;
       position: relative;
     }
+    l {
+      color #000000
+    }
     #download-toggle-btn .badge {
       position: absolute;
       top: -6px;
       right: -6px;
       font-size: 0.7rem;
+    }
+
+    #fallback-message {
+      display: none;
+      margin-top: 20px;
+      padding: 15px;
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+      border-radius: 5px;
+    }
+    #fallback-message a {
+      color: #0056b3;
+      text-decoration: underline;
     }
 
     /* Responsive Anpassungen */
@@ -226,6 +243,96 @@
         width: 100%;
       }
     }
+    /* ---------- KACHELN ---------- */
+  .updates {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+
+  .update-card {
+    background: #fff;
+    padding: 18px;
+    border-left: 6px solid #2196f3;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  }
+
+  .update-card.warnung {
+    border-color: #ff9800;
+    background-color: #fffaf0;
+  }
+
+  .update-card.kritisch {
+    border-color: #f44336;
+    background-color: #fff5f5;
+  }
+
+  .update-card h3 {
+    margin: 0 0 6px 0;
+    font-size: 1.1rem;
+  }
+
+  .update-card small {
+    color: #555;
+    font-size: 0.85rem;
+  }
+
+  .update-card p {
+    margin: 8px 0;
+    font-size: 0.95rem;
+  }
+
+  .update-card a {
+    font-size: 0.9rem;
+    color: #1976d2;
+  }
+
+  /* ---------- ROADMAP-ZEITLINIE ---------- */
+  .roadmap {
+    position: relative;
+    margin-left: 30px;
+    border-left: 4px solid #ccc;
+    padding-left: 20px;
+  }
+
+  .roadmap-entry {
+    position: relative;
+    margin-bottom: 30px;
+    padding-left: 10px;
+  }
+
+  .roadmap-entry::before {
+    content: "";
+    position: absolute;
+    left: -34px;
+    top: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 4px solid #fff;
+    box-shadow: 0 0 0 2px #ccc;
+  }
+
+  .roadmap-entry.geplant::before   { background-color: #9e9e9e; }
+  .roadmap-entry.in_arbeit::before { background-color: #2196f3; }
+  .roadmap-entry.abgeschlossen::before { background-color: #4caf50; }
+
+  .roadmap-entry h4 {
+    margin: 0 0 4px 0;
+  }
+
+  .roadmap-entry small {
+    color: #777;
+  }
+
+  .roadmap-entry p {
+    margin: 6px 0 0 0;
+  }
+
+  .h10
+
   </style>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
 <script>
@@ -440,6 +547,7 @@
     <div id="navbarNav" class="collapse navbar-collapse order-lg-1">
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         <li class="nav-item"><a href="{% url 'jds_apps' %}" class="nav-link">JDS Appstore Download</a></li>
+        <li class="nav-item"><a href="{% url 'infopage' %}" class="nav-link">Infos</a></li>
         <li class="nav-item"><a href="{% url 'developer_list' %}" class="nav-link">Entwickler</a></li>
         <li class="nav-item"><a href="{% url 'platform' 'windows' %}" class="nav-link">Windows</a></li>
         <li class="nav-item"><a href="{% url 'platform' 'linux' %}" class="nav-link">Linux</a></li>
@@ -455,6 +563,27 @@
   </div>
 </nav>
 
+<div id="fallback-message">
+  App scheint nicht installiert zu sein. <a href="https://jds-appstore.onrender.com/jds-appstore/" target="_blank">Jetzt installieren</a>
+</div>
+
+<script>
+function openMedainApp() {
+  const fallbackMessage = document.getElementById("fallback-message");
+
+  const now = Date.now();
+  const timeout = setTimeout(() => {
+    const elapsed = Date.now() - now;
+    if (elapsed < 2000) {
+      // App wurde vermutlich NICHT geöffnet → Hinweis anzeigen
+      fallbackMessage.style.display = "block";
+    }
+  }, 1500);
+
+  // Versuche, App zu öffnen
+  window.location.href = "intent://start#Intent;scheme=https;package=co.median.android.ljrnrp;end";
+}
+</script>
 
 <div id="notification-banner" style="display:none; position: fixed; bottom: 0; left: 0; right: 0; background: #222; border-top: 1px solid #444; padding: 15px; z-index: 9998; font-size: 14px; color: white;">
   <div style="max-width: 900px; margin: auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">

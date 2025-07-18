@@ -186,3 +186,43 @@ class PushSubscription(models.Model):
 
     def __str__(self):
         return self.endpoint[:40]
+    
+class AppInfo(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+
+    def __str__(self):
+        return f"{self.name}"
+
+
+class AppUpdate(models.Model):
+    UPDATE_TYPES = [
+        ("info", "Information"),
+        ("warnung", "Warnung"),
+        ("kritisch", "Kritisch"),
+    ]
+
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    update_type = models.CharField(max_length=10, choices=UPDATE_TYPES)
+    date = models.DateField(auto_now_add=True)
+    link = models.URLField(blank=True)
+
+    def __str__(self):
+        return f"[{self.get_update_type_display()}] {self.title}"
+
+
+class RoadmapItem(models.Model):
+    STATUS_CHOICES = [
+        ("geplant", "Geplant"),
+        ("in_arbeit", "In Arbeit"),
+        ("abgeschlossen", "Abgeschlossen"),
+    ]
+
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    date = models.DateField()
+
+    def __str__(self):
+        return f"{self.title} ({self.get_status_display()})"

@@ -48,6 +48,7 @@ urlpatterns = [
     #path('download/complete/', views.download_complete, name='download_complete'),
 
     path("jds-appstore/", views.jds_appstore_apps, name="jds_apps"),
+    path("info/", views.info_page, name="infopage"),
 
     path("save-subscription/", views.push_subscribe, name="push_subscribe"),
     path('notifications/check/', views.get_notifications_for_user, name='notifications_check'),

@@ -54,19 +54,26 @@ def notification_settings_view(request):
 
 @login_required
 def security_settings(request):
-    security, created = UserSecurity.objects.get_or_create(user=request.user)
+    security, _ = UserSecurity.objects.get_or_create(user=request.user)
 
     if request.method == 'POST':
         action = request.POST.get('action')
 
         if action == 'deactivate':
-            security.is_deactivated = True
-            security.save()
-            messages.success(request, "Dein Konto wurde deaktiviert. Du wirst nun abgemeldet.")
-            logout(request)
-            return redirect('login')
+            password = request.POST.get('password')
+            user = authenticate(username=request.user.username, password=password)
+            if user:
+                user.is_active = False        # actually disable login
+                user.save()
+                security.is_deactivated = True
+                security.save()
+                logout(request)
+                messages.success(request, "Dein Konto wurde deaktiviert. Du wirst nun abgemeldet.")
+                return redirect('login')
+            else:
+                messages.error(request, "Falsches Passwort. Konto wurde nicht deaktiviert.")
 
-        if action == 'delete':
+        elif action == 'delete':
             password = request.POST.get('password')
             user = authenticate(username=request.user.username, password=password)
             if user:

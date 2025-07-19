@@ -33,6 +33,8 @@ from django.utils.encoding import force_bytes
 from django.core.mail import send_mail
 from django.urls import reverse
 import secrets
+from settings.models import UserSecurity
+from . import models
 
 app_celery = Celery()
 
@@ -41,16 +43,13 @@ from django.http import JsonResponse
 
 def password_reset_request(request):
     if request.method == "POST":
-        username_or_email = request.POST.get("username_or_email")
+        username = request.POST.get("username")
 
         try:
-            user = User.objects.get(username=username_or_email)
+            user = User.objects.get(username=username)
         except User.DoesNotExist:
-            try:
-                user = User.objects.get(email=username_or_email)
-            except User.DoesNotExist:
-                messages.error(request, "Benutzer nicht gefunden.")
-                return redirect("password_reset")
+            messages.error(request, "Benutzer nicht gefunden.")
+            return redirect("password_reset")
 
         # Token und Link generieren
         token = default_token_generator.make_token(user)
@@ -203,6 +202,11 @@ def verify_email_view(request):
             verification = EmailVerificationCode.objects.get(user=user, code=code)
             verification.delete()  # Code löschen nach Verifizierung
             
+            securitysettings, _ = UserSecurity.objects.get_or_create(user=user)
+            if securitysettings:
+                securitysettings.is_deactivated = False
+                securitysettings.save()
+
             user.is_active = True
             user.save()
             login(request, user)
@@ -215,13 +219,40 @@ def verify_email_view(request):
 
 def login_view(request):
     if request.method == 'POST':
-        form = AuthenticationForm(data=request.POST)
-        if form.is_valid():
-            user = form.get_user()
-            login(request, user)
-            return redirect('home')
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+
+        try:
+            user = User.objects.get(username=username)
+            if user.check_password(password):
+                if not user.is_active:
+                    code = secrets.token_hex(3).upper()
+                    EmailVerificationCode.objects.create(user=user, code=code)
+
+                    send_mail(
+                        'Reaktiviere deinen Account mit deiner E-Mail Adresse',
+                        f'Dein Bestätigungscode lautet: {code}',
+                        settings.DEFAULT_FROM_EMAIL,
+                        [user.email]
+                    )
+
+                    request.session['pending_user_id'] = user.id
+                    return redirect('verify_email')
+
+                login(request, user)
+                return redirect('home')
+            else:
+                form_error = True
+        except User.DoesNotExist:
+            form_error = True
+
+        # Falls Passwort falsch oder User nicht existiert
+        form = AuthenticationForm()
+        if 'form_error' in locals():
+            form.add_error(None, "Ungültiger Benutzername oder Passwort.")
     else:
         form = AuthenticationForm()
+
     return render(request, 'store/login.html', {'form': form})
 
 def logout_view(request):
@@ -905,8 +936,16 @@ def media_file_view(request, path):
 
 def info_page(request):
     updates = AppUpdate.objects.order_by('-date')[:10]
-    roadmap = RoadmapItem.objects.order_by('date')
+
+    cutoff = timezone.now() - timedelta(weeks=20)
+    roadmap = RoadmapItem.objects.filter(
+        Q(status='geplant') |
+        Q(status='in_arbeit') |
+        (Q(status='abgeschlossen') & Q(date__gte=cutoff))
+    ).order_by('date')
+
     return render(request, 'store/infoseite.html', {
         'updates': updates,
         'roadmap': roadmap,
+        'all_done': not RoadmapItem.objects.exclude(status='abgeschlossen').exists(),
     })

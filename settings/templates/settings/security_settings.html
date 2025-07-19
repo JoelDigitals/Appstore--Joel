@@ -12,11 +12,34 @@
     {% endif %}
 </p>
 
-<form method="post">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="deactivate">
-    <button class="btn btn-warning">Konto deaktivieren</button>
-</form>
+<!-- Deaktivieren-Modal -->
+<div class="modal fade" id="deactivateModal" tabindex="-1" aria-labelledby="deactivateModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content bg-dark text-white">
+      <div class="modal-header">
+        <h5 class="modal-title" id="deactivateModalLabel">Konto deaktivieren</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Schließen"></button>
+      </div>
+      <form method="post">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="deactivate">
+          <p class="text-warning">Gib dein Passwort ein, um das Konto zu deaktivieren:</p>
+          <input type="password" name="password" class="form-control" placeholder="Passwort" required>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+          <button type="submit" class="btn btn-warning">Konto deaktivieren</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Button that opens the modal -->
+<button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#deactivateModal">
+    Konto deaktivieren
+</button>
 
 <hr>
 

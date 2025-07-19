@@ -27,8 +27,14 @@ class NotificationSettings(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='notification_settings')
     email_notifications = models.BooleanField(default=True)
     push_notifications = models.BooleanField(default=True)
-    daily_digest = models.BooleanField(default=False)
 
     def __str__(self):
         return f"Benachrichtigungseinstellungen für {self.user.username}"
     
+class UserSecurity(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='security')
+    is_deactivated = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Sicherheitseinstellungen für {self.user.username}"
+

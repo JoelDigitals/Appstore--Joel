@@ -1,6 +1,27 @@
 from django import forms
 from .models import App, AppWarning, Version, Developer, CATEGORY_CHOICES, SUB_CATEGORY_CHOICES, WARNING_TYPES
 from django.utils import timezone
+from django.contrib.auth.models import User
+from django.contrib.auth.forms import UserCreationForm
+
+class CustomUserCreationForm(UserCreationForm):
+    email = forms.EmailField(
+        required=True,
+        widget=forms.EmailInput(attrs={'placeholder': 'E-Mail-Adresse'})
+    )
+
+    class Meta:
+        model = User
+        fields = ('username', 'email', 'password1', 'password2')
+        widgets = {
+            'username': forms.TextInput(attrs={'placeholder': 'Benutzername'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['password1'].widget.attrs['placeholder'] = 'Passwort'
+        self.fields['password2'].widget.attrs['placeholder'] = 'Passwort bestätigen'
+    
 
 class AppEditForm(forms.ModelForm):
     # Optional: Du kannst hier Widgets oder Labels anpassen, z. B. für die Kategorien

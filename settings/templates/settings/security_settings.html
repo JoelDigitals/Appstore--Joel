@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Security Settings{% endblock %}
+
+{% block content %}
+<h2>Security Settings</h2>
+
+<p><strong>Status:</strong>
+    {% if security.is_deactivated %}
+        <span class="text-danger">Deaktiviert</span>
+    {% else %}
+        <span class="text-success">Aktiv</span>
+    {% endif %}
+</p>
+
+<form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="deactivate">
+    <button class="btn btn-warning">Konto deaktivieren</button>
+</form>
+
+<hr>
+
+<h3>Konto löschen</h3>
+<p class="text-danger">Wenn du dein Konto löschen willst, wirst du unwiderruflich entfernt.</p>
+<!-- Button trigger modal -->
+<button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+    Konto löschen
+</button>
+
+<!-- Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content bg-dark text-white">
+      <div class="modal-header">
+        <h5 class="modal-title" id="deleteModalLabel">Konto dauerhaft löschen</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Schließen"></button>
+      </div>
+      <form method="post">
+        <div class="modal-body">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete">
+            <p class="text-warning">Bitte gib dein Passwort ein, um dein Konto dauerhaft zu löschen:</p>
+            <input type="password" name="password" class="form-control" placeholder="Passwort" required>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+          <button type="submit" class="btn btn-danger">Konto löschen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<hr>
+
+<h3>2-Faktor-Authentifizierung</h3>
+<p>Diese Funktion wird bald verfügbar sein.</p>
+<button class="btn btn-secondary" disabled>2FA aktivieren</button>
+
+<!-- Bootstrap JS (falls noch nicht enthalten) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+{% endblock %}

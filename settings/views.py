@@ -1,6 +1,11 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from .models import UserProfile, NotificationSettings
+from django.contrib.auth import logout
+from django.contrib.auth import authenticate
+from django.contrib.auth.models import User
+from .models import UserProfile, NotificationSettings, UserSecurity
+from django.contrib import messages
+
 
 @login_required
 def user_profile_view(request): 
@@ -32,15 +37,6 @@ def delete_user_profile_view(request):
     return render(request, 'settings/delete_user_profile.html', {'profile': profile})
 
 @login_required
-def change_password_view(request):  
-    if request.method == 'POST':
-        new_password = request.POST.get('new_password')
-        request.user.set_password(new_password)
-        request.user.save()
-        return redirect('login')
-    return render(request, 'settings/change_password.html')
-
-@login_required
 def user_settings_view(request):
     return render(request, 'settings/user_settings.html')
 
@@ -55,3 +51,29 @@ def notification_settings_view(request):
         return redirect('user_settings')
     return render(request, 'settings/notification_settings.html', {'settings': settings})
 
+
+@login_required
+def security_settings(request):
+    security, created = UserSecurity.objects.get_or_create(user=request.user)
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'deactivate':
+            security.is_deactivated = True
+            security.save()
+            messages.success(request, "Dein Konto wurde deaktiviert. Du wirst nun abgemeldet.")
+            logout(request)
+            return redirect('login')
+
+        if action == 'delete':
+            password = request.POST.get('password')
+            user = authenticate(username=request.user.username, password=password)
+            if user:
+                request.user.delete()
+                messages.success(request, "Dein Konto wurde gelöscht.")
+                return redirect('home')
+            else:
+                messages.error(request, "Falsches Passwort. Konto wurde nicht gelöscht.")
+
+    return render(request, 'settings/security_settings.html', {'security': security})

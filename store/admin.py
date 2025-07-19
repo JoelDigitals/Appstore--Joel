@@ -4,7 +4,7 @@ from django.conf import settings
 import json
 from pywebpush import webpush, WebPushException
 
-from .models import App, AppWarning, Notification, PushSubscription, Version, Developer, AppScreenshot, VersionDownload, AppUpdate, AppInfo, RoadmapItem
+from .models import App, AppWarning, Notification, PushSubscription, Version, Developer, AppScreenshot, VersionDownload, AppUpdate, AppInfo, RoadmapItem, EmailVerificationCode
 
 # Normale Admin-Registrierungen:
 admin.site.register(App)
@@ -16,6 +16,7 @@ admin.site.register(VersionDownload)
 admin.site.register(AppInfo)
 admin.site.register(AppUpdate)
 admin.site.register(RoadmapItem)
+admin.site.register(EmailVerificationCode)
 
 # Eigene Admin-Klasse für PushSubscription:
 @admin.register(PushSubscription)

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8" />
+    <title>Verifizierung</title>
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a6fd8;
+            --bg: #f5f7fa;
+            --white: #ffffff;
+            --text: #333;
+            --error: #e74c3c;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .card {
+            background: var(--white);
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 40px 32px;
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 24px;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+
+        p {
+            font-size: 15px;
+            color: #666;
+            margin-bottom: 24px;
+        }
+
+        .code-input {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .code-input input {
+            width: 48px;
+            height: 56px;
+            font-size: 24px;
+            text-align: center;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .code-input input:focus {
+            border-color: var(--primary);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.25);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: var(--white);
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .btn:hover {
+            background: var(--primary-dark);
+        }
+
+        .resend {
+            margin-top: 16px;
+            font-size: 14px;
+            color: #777;
+        }
+
+        .resend a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .resend a:hover {
+            text-decoration: underline;
+        }
+
+        .error {
+            color: var(--error);
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Verifizierungscode</h1>
+        <p>
+            Wir haben dir eine E-Mail mit einem 6-stelligen Code an
+            <strong>{{ email|default:"deine Adresse" }}</strong> gesendet.
+        </p>
+
+        {% if error %}
+            <div class="error">{{ error }}</div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="code-input">
+                <!-- 6 einzelne Felder für bessere UX -->
+                <input type="text" maxlength="1" inputmode="numeric" name="code_1" required autofocus />
+                <input type="text" maxlength="1" inputmode="numeric" name="code_2" required />
+                <input type="text" maxlength="1" inputmode="numeric" name="code_3" required />
+                <input type="text" maxlength="1" inputmode="numeric" name="code_4" required />
+                <input type="text" maxlength="1" inputmode="numeric" name="code_5" required />
+                <input type="text" maxlength="1" inputmode="numeric" name="code_6" required />
+            </div>
+
+            <button type="submit" class="btn">Code bestätigen</button>
+        </form>
+
+        <!--<div class="resend">
+            Keinen Code erhalten?
+            <a href="{% url 'home' %}">Erneut senden</a>
+        </div>-->
+    </div>
+
+    <script>
+        /* Automatisches Weiter-springen nach Eingabe */
+        const inputs = document.querySelectorAll('.code-input input');
+        inputs.forEach((input, idx) => {
+            input.addEventListener('input', e => {
+                if (e.target.value.length === 1 && idx < inputs.length - 1) {
+                    inputs[idx + 1].focus();
+                }
+            });
+            input.addEventListener('keydown', e => {
+                if (e.key === 'Backspace' && e.target.value === '' && idx > 0) {
+                    inputs[idx - 1].focus();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

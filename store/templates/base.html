@@ -252,7 +252,7 @@
   }
 
   .update-card {
-    background: #fff;
+    background: #1e1e1e;;
     padding: 18px;
     border-left: 6px solid #2196f3;
     border-radius: 8px;
@@ -271,16 +271,18 @@
 
   .update-card h3 {
     margin: 0 0 6px 0;
+    color #000000
     font-size: 1.1rem;
   }
 
   .update-card small {
-    color: #555;
+    color: #b8b0b0ff;
     font-size: 0.85rem;
   }
 
   .update-card p {
     margin: 8px 0;
+    color: #000000
     font-size: 0.95rem;
   }
 
@@ -501,6 +503,7 @@
             <li><a class="dropdown-item text-center" href="{% url 'notifications_all' %}">Alle anzeigen</a></li>
           {% else %}
             <li><span class="dropdown-item small text-muted">Keine neuen Benachrichtigungen</span></li>
+            <li><a class="dropdown-item text-center" href="{% url 'notifications_all' %}">Alle anzeigen</a></li>
           {% endif %}
         </ul>
       </div>
@@ -570,18 +573,18 @@
 <script>
 function openMedainApp() {
   const fallbackMessage = document.getElementById("fallback-message");
-
   const now = Date.now();
+  
+  // Verlängere Timeout auf 2.5 Sekunden
   const timeout = setTimeout(() => {
     const elapsed = Date.now() - now;
-    if (elapsed < 2000) {
-      // App wurde vermutlich NICHT geöffnet → Hinweis anzeigen
+    if (elapsed < 2500) {
       fallbackMessage.style.display = "block";
     }
-  }, 1500);
+  }, 2500);
 
-  // Versuche, App zu öffnen
-  window.location.href = "intent://start#Intent;scheme=https;package=co.median.android.ljrnrp;end";
+  // Korrigierter Intent-URI (verwende den offiziellen Scheme)
+  window.location.href = "intent://start#Intent;scheme=median;package=co.median.android.ljrnrp;end";
 }
 </script>
 

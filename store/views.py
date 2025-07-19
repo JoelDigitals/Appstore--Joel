@@ -4,8 +4,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
-from .models import App, Version, PushSubscription, Developer, VersionDownload, Notification, AppInfo, AppUpdate, RoadmapItem
-from .forms import AppWithVersionForm, VersionForm, DeveloperForm, AppEditForm
+from .models import App, Version, PushSubscription, Developer, VersionDownload, Notification, EmailVerificationCode, AppUpdate, RoadmapItem, User
+from .forms import AppWithVersionForm, VersionForm, DeveloperForm, AppEditForm, CustomUserCreationForm
 from .tasks import start_background_check, start_background_check_version
 from django.http import FileResponse, JsonResponse, HttpResponse, FileResponse, HttpResponseNotFound, HttpResponseForbidden
 import json
@@ -26,10 +26,71 @@ from django.core.cache import cache
 from django.conf import settings
 import mimetypes
 import threading
+from django.contrib.auth.views import PasswordResetConfirmView
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+from django.core.mail import send_mail
+from django.urls import reverse
+import secrets
 
 app_celery = Celery()
 
 from django.http import JsonResponse
+
+
+def password_reset_request(request):
+    if request.method == "POST":
+        username_or_email = request.POST.get("username_or_email")
+
+        try:
+            user = User.objects.get(username=username_or_email)
+        except User.DoesNotExist:
+            try:
+                user = User.objects.get(email=username_or_email)
+            except User.DoesNotExist:
+                messages.error(request, "Benutzer nicht gefunden.")
+                return redirect("password_reset")
+
+        # Token und Link generieren
+        token = default_token_generator.make_token(user)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        reset_link = request.build_absolute_uri(
+            reverse("password_reset_confirm", kwargs={"uidb64": uid, "token": token})
+        )
+
+        # Nachricht
+        subject = "Passwort zurücksetzen"
+        message = f"Hallo {user.username},\n\nHier ist der Link zum Zurücksetzen deines Passworts:\n{reset_link}"
+
+        # E-Mail oder SMS-Versand
+        if user.email:
+            send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [user.email])
+        elif hasattr(user, "phone_number") and user.phone_number:
+            print(f"SMS an {user.phone_number}: {message}")  # Simulierter SMS-Versand
+        else:
+            messages.error(request, "Keine E-Mail oder Telefonnummer hinterlegt.")
+            return redirect("password_reset")
+
+        return redirect("password_reset_done")
+
+    return render(request, "accounts/password_reset.html")
+
+
+def password_reset_done(request):
+    return render(request, "accounts/password_reset_done.html")
+
+def password_reset_confirm(request, uidb64, token):
+    return PasswordResetConfirmView.as_view(
+        template_name="accounts/password_reset_confirm.html",
+        success_url=reverse("password_reset_complete")
+    )(request, uidb64=uidb64, token=token)
+
+def password_reset_complete(request):
+    return render(request, "accounts/password_reset_complete.html")
+
+
+
 
 def get_notifications_for_user(user):
     notification_count = cache.get(f'notification_count_{user.id}')
@@ -108,15 +169,49 @@ def download_all_media(request):
 
 def register_view(request):
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = CustomUserCreationForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            login(request, user)
-            messages.success(request, 'Registrierung erfolgreich! Du bist nun eingeloggt.')
-            return redirect('home')
+            user = form.save(commit=False)
+            user.is_active = False  # Deaktivieren, bis E-Mail bestätigt
+            user.save()
+
+            # Code generieren und speichern
+            code = secrets.token_hex(3).upper()  # 6-stelliger Code
+            EmailVerificationCode.objects.create(user=user, code=code)
+
+            # E-Mail senden
+            send_mail(
+                'Bestätige deine E-Mail-Adresse',
+                f'Dein Bestätigungscode lautet: {code}',
+                settings.DEFAULT_FROM_EMAIL,
+                [user.email]
+            )
+
+            request.session['pending_user_id'] = user.id  # Speichere User-ID für Verifizierung
+            return redirect('verify_email')
     else:
-        form = UserCreationForm()
+        form = CustomUserCreationForm()
     return render(request, 'store/register.html', {'form': form})
+
+def verify_email_view(request):
+    if request.method == 'POST':
+        code = ''.join([request.POST.get(f'code_{i}', '') for i in range(1, 7)])
+        user_id = request.session.get('pending_user_id')
+        
+        try:
+            user = User.objects.get(id=user_id)
+            verification = EmailVerificationCode.objects.get(user=user, code=code)
+            verification.delete()  # Code löschen nach Verifizierung
+            
+            user.is_active = True
+            user.save()
+            login(request, user)
+            messages.success(request, 'E-Mail verifiziert! Du bist nun eingeloggt.')
+            return redirect('home')
+        except EmailVerificationCode.DoesNotExist:
+            messages.error(request, 'Ungültiger Code!')
+    return render(request, 'store/verify_email.html')
+
 
 def login_view(request):
     if request.method == 'POST':

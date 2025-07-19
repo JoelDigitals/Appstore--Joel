@@ -13,6 +13,7 @@ from django.core.mail import EmailMultiAlternatives
 from .models import Version, Notification, App
 from django.template.loader import render_to_string
 from django.conf import settings
+from settings.models import NotificationSettings
 
 def create_notification(user, title, message, app=None, version=None, level='info'):
     """
@@ -99,6 +100,7 @@ def start_background_check(version_id):
     file_path = version.file.path
     log = []
     dev = version.app.developer
+    notification = NotificationSettings.objects.filter(user=dev)
 
     def fail(msg):
         log.append(f"*** FEHLER: {msg}")
@@ -106,24 +108,26 @@ def start_background_check(version_id):
         version.approved = False
         version.checking_log = "\n".join(log) + "\n\nFEHLER: " + msg
         version.save()
-        send_check_email(
-            user=dev,
-            subject=f"Prüfung fehlgeschlagen: {version.app.name}",
-            message="Die App-Prüfung ist fehlgeschlagen.",
-            log_lines=log,
-            app=version.app,
-            version=version,
-            success=False,
-            error_msg=msg
-        )
-        create_notification(
-            user=dev.user,
-            title=f"Prüfung fehlgeschlagen: {version.app.name}",
-            message=msg,
-            app=version.app,
-            version=version,
-            level='error'
-        )
+        if notification.email_notifications:
+            send_check_email(
+                user=dev,
+                subject=f"Prüfung fehlgeschlagen: {version.app.name}",
+                message="Die App-Prüfung ist fehlgeschlagen.",
+                log_lines=log,
+                app=version.app,
+                version=version,
+                success=False,
+                error_msg=msg
+            )
+        if notification.push_notifications:
+            create_notification(
+                user=dev.user,
+                title=f"Prüfung fehlgeschlagen: {version.app.name}",
+                message=msg,
+                app=version.app,
+                version=version,
+                level='error'
+            )
 
     try:
         log.append(f"Starte Prüfung für Datei: {file_path}")
@@ -242,38 +246,42 @@ def start_background_check(version_id):
 
         subject = f"{version.app.name} wurde erfolgreich geprüft"
         message = f"Die Version {version.version_number} Ihrer App wurde erfolgreich geprüft und freigegeben."
-        send_check_email(dev, subject, message, log)
-        create_notification(
-            user=dev.user,
-            title=f"Prüfung erfolgreich: {version.app.name}",
-            message=message,
-            app=version.app,
-            version=version,
-            level='success_1'
-        )
+        if notification.email_notifications:
+            send_check_email(dev, subject, message, log)
+        if notification.push_notifications:
+            create_notification(
+                user=dev.user,
+                title=f"Prüfung erfolgreich: {version.app.name}",
+                message=message,
+                app=version.app,
+                version=version,
+                level='success_1'
+            )
 
         version.checking_progress = 4  # Update den Fortschritt
         version.save()
         time.sleep(random.randint(15, 20) * 60)
 
+        version.checking_progress = 5
         version.new_version = True  # Markiere die Version als neu
         version.save()
         version.app.published = True
         version.app.save()
-
-        send_check_email(dev,
-            f"{version.app.name} ist jetzt veröffentlicht",
-            "Ihre App wurde soeben freigegeben und ist jetzt öffentlich sichtbar.",
-            log
-        )
-        create_notification(
-            user=dev.user,
-            title=f"{version.app.name} ist jetzt veröffentlicht",
-            message="Ihre App wurde soeben freigegeben und ist jetzt öffentlich sichtbar.",
-            app=version.app,
-            version=version,
-            level='success_2'
-        )
+        if notification.email_notifications:
+            send_check_email(dev,
+                f"{version.app.name} ist jetzt veröffentlicht",
+                "Ihre App wurde soeben freigegeben und ist jetzt öffentlich sichtbar.",
+                log
+            )
+        if notification.push_notifications:
+            create_notification(
+                user=dev.user,
+                title=f"{version.app.name} ist jetzt veröffentlicht",
+                message="Ihre App wurde soeben freigegeben und ist jetzt öffentlich sichtbar.",
+                app=version.app,
+                version=version,
+                level='success_2'
+            )
 
     except Exception as e:
         error_message = f"Unerwarteter Fehler: {e}"
@@ -281,24 +289,26 @@ def start_background_check(version_id):
         version.approved = False
         version.checking_log = "\n".join(log) + "\n\nFEHLER: " + error_message
         version.save()
-        send_check_email(
-            user=dev,
-            subject=f"Unerwarteter Fehler bei der Prüfung: {version.app.name}",
-            message="Die App-Prüfung ist aufgrund eines unerwarteten Fehlers fehlgeschlagen.",
-            log_lines=log,
-            app=version.app,
-            version=version,
-            success=False,
-            error_msg=error_message
-        )
-        create_notification(
-            user=dev.user,
-            title=f"Prüfung fehlgeschlagen: {version.app.name}",
-            message=error_message,
-            app=version.app,
-            version=version,
-            level='error'
-        )
+        if notification.email_notifications:
+            send_check_email(
+                user=dev,
+                subject=f"Unerwarteter Fehler bei der Prüfung: {version.app.name}",
+                message="Die App-Prüfung ist aufgrund eines unerwarteten Fehlers fehlgeschlagen.",
+                log_lines=log,
+                app=version.app,
+                version=version,
+                success=False,
+                error_msg=error_message
+            )
+        if notification.push_notifications:
+            create_notification(
+                user=dev.user,
+                title=f"Prüfung fehlgeschlagen: {version.app.name}",
+                message=error_message,
+                app=version.app,
+                version=version,
+                level='error'
+            )
 
 
 
@@ -322,6 +332,8 @@ def start_background_check_version(version_id):
     file_path = version.file.path
     log = []
     dev = version.app.developer
+    notification = NotificationSettings.objects.filter(user=dev)
+    
 
     def fail(msg):
         log.append(f"*** FEHLER: {msg}")
@@ -329,24 +341,26 @@ def start_background_check_version(version_id):
         version.approved = False
         version.checking_log = "\n".join(log) + "\n\nFEHLER: " + msg
         version.save()
-        send_check_email(
-            user=dev,
-            subject=f"Prüfung fehlgeschlagen: {version.app.name}",
-            message="Die App-Prüfung ist fehlgeschlagen.",
-            log_lines=log,
-            app=version.app,
-            version=version,
-            success=False,
-            error_msg=msg
-        )
-        create_notification(
-            user=dev.user,
-            title=f"Prüfung fehlgeschlagen: {version.app.name}",
-            message=msg,
-            app=version.app,
-            version=version,
-            level='error'
-        )
+        if notification.email_notifications:
+            send_check_email(
+                user=dev,
+                subject=f"Prüfung fehlgeschlagen: {version.app.name}",
+                message="Die App-Prüfung ist fehlgeschlagen.",
+                log_lines=log,
+                app=version.app,
+                version=version,
+                success=False,
+                error_msg=msg
+            )
+        if notification.push_notifications:
+            create_notification(
+                user=dev.user,
+                title=f"Prüfung fehlgeschlagen: {version.app.name}",
+                message=msg,
+                app=version.app,
+                version=version,
+                level='error'
+            )
 
     try:
         log.append(f"Starte Prüfung für Datei: {file_path}")
@@ -462,17 +476,19 @@ def start_background_check_version(version_id):
         version.checking_log = "Erfolgreich geprüft:\n" + "\n".join(log)
         version.save()
 
-        subject = f"{version.app.name} wurde erfolgreich geprüft"
+        subject = f"{version} wurde erfolgreich geprüft"
         message = f"Die Version {version.version_number} Ihrer App wurde erfolgreich geprüft und freigegeben."
-        send_check_email(dev, subject, message, log)
-        create_notification(
-            user=dev.user,
-            title=f"Prüfung erfolgreich: {version.app.name}",
-            message=message,
-            app=version.app,
-            version=version,
-            level='success_1'
-        )
+        if notification.email_notifications:
+            send_check_email(dev, subject, message, log)
+        if notification.push_notifications:
+            create_notification(
+                user=dev.user,
+                title=f"Prüfung erfolgreich: {version}",
+                message=message,
+                app=version.app,
+                version=version,
+                level='success_1'
+            )
         version.checking_progress = 4  # Update den Fortschritt
         version.save()
 
@@ -482,19 +498,21 @@ def start_background_check_version(version_id):
         version.new_version = True  # Markiere die neue Version als neu
         version.save()
 
-        send_check_email(dev,
-            f"{version.app.name} ist jetzt veröffentlicht",
-            "Ihre App wurde soeben freigegeben und ist jetzt öffentlich sichtbar.",
-            log
-        )
-        create_notification(
-            user=dev.user,
-            title=f"{version.app.name} ist jetzt veröffentlicht",
-            message="Ihre App wurde soeben freigegeben und ist jetzt öffentlich sichtbar.",
-            app=version.app,
-            version=version,
-            level='success_2'
-        )
+        if notification.email_notifications:
+            send_check_email(dev,
+                f"{version} ist jetzt veröffentlicht",
+                "Ihre Version wurde soeben freigegeben und ist jetzt öffentlich sichtbar.",
+                log
+            )
+        if notification.push_notifications:
+            create_notification(
+                user=dev.user,
+                title=f"{version} ist jetzt veröffentlicht",
+                message="Ihre Version wurde soeben freigegeben und ist jetzt öffentlich sichtbar.",
+                app=version.app,
+                version=version,
+                level='success_2'
+            )
 
     except Exception as e:
         error_message = f"Unerwarteter Fehler: {e}"
@@ -502,21 +520,23 @@ def start_background_check_version(version_id):
         version.approved = False
         version.checking_log = "\n".join(log) + "\n\nFEHLER: " + error_message
         version.save()
-        send_check_email(
-            user=dev,
-            subject=f"Unerwarteter Fehler bei der Prüfung: {version.app.name}",
-            message="Die App-Prüfung ist aufgrund eines unerwarteten Fehlers fehlgeschlagen.",
-            log_lines=log,
-            app=version.app,
-            version=version,
-            success=False,
-            error_msg=error_message
-        )
-        create_notification(
-            user=dev.user,
-            title=f"Prüfung fehlgeschlagen: {version.app.name}",
-            message=error_message,
-            app=version.app,
-            version=version,
-            level='error'
-        )
+        if notification.email_notifications:
+            send_check_email(
+                user=dev,
+                subject=f"Unerwarteter Fehler bei der Prüfung: {version.app.name}",
+                message="Die App-Prüfung ist aufgrund eines unerwarteten Fehlers fehlgeschlagen.",
+                log_lines=log,
+                app=version.app,
+                version=version,
+                success=False,
+                error_msg=error_message
+            )
+        if notification.push_notifications:
+            create_notification(
+                user=dev.user,
+                title=f"Prüfung fehlgeschlagen: {version.app.name}",
+                message=error_message,
+                app=version.app,
+                version=version,
+                level='error'
+            )

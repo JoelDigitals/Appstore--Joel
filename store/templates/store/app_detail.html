@@ -293,7 +293,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const ctx = canvas.getContext('2d');
   const versionId = {{ latest_version.id }};
   const downloadUrl = "{% url 'download_file_view' latest_version.id %}";
-  const fileName = '{{ app.name|slugify }}-v{{ latest_version.version }}.apk';
+  const platform = '{{ app.platform|lower }}';
+  const originalFileName = '{{ latest_version.file.name }}';
+  const fileExtension = originalFileName.split('.').pop().toLowerCase();
+  const fileName = '{{ app.name|slugify }}-v{{ latest_version.version }}.' + fileExtension;
 
   let installed = {% if user_installed_version and user_installed_version.id == latest_version.id %}true{% else %}false{% endif %};
   let downloading = false;
@@ -428,13 +431,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      const apkBlob = new Blob(chunks, { type: 'application/vnd.android.package-archive' });
+      const mimeType = fileExtension === 'apk'
+        ? 'application/vnd.android.package-archive'
+        : fileExtension === 'ipa'
+        ? 'application/octet-stream'
+        : 'application/octet-stream';
+
+      const apkBlob = new Blob(chunks, { type: mimeType });
       const apkUrl = URL.createObjectURL(apkBlob);
 
       // Versuch die Datei "auszuführen"
       const a = document.createElement('a');
       a.href = apkUrl;
-      a.download = fileName;
+      a.download = fileName;      
+
+      if (fileExtension === 'apk') {
+        a.target = '_blank'; // Versucht, APK zu öffnen
+      } else {
+        a.target = '_self'; // Normales Downloadverhalten
+      }
       document.body.appendChild(a);
 
       try {

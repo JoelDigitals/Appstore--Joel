@@ -3,6 +3,11 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 
+class EmailVerificationCode(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+
 # Vordefinierte Altersfreigaben
 AGE_RATINGS = [
     ('0', 'Keine Altersbeschränkung'),
@@ -91,8 +96,8 @@ class Developer(models.Model):
 
 
 def validate_minimum_screenshots(value):
-    if value.count() < 3:
-        raise ValidationError("Mindestens 3 Screenshots erforderlich.")
+    if value.count() < 1:
+        raise ValidationError("Mindestens 1 Screenshots erforderlich.")
 
 class App(models.Model):
     developer = models.ForeignKey(Developer, on_delete=models.CASCADE, related_name='apps')
@@ -142,7 +147,7 @@ class Version(models.Model):
     new_version = models.BooleanField(default=False)  # Markierung für neue Version
 
     def __str__(self):
-        return f"{self.app.name} v{self.version_number}"
+        return f"{self.app.name} v{self.version_number} on {self.app.platform}"
 
 # Optional: Warnungen, z.B. Gewalt, Sex, Werbung etc.
 WARNING_TYPES = [
